@@ -1,0 +1,48 @@
+{
+  "name": "@sqlflow/widget-sdk",
+  "version": "8.2.2-15",
+  "private": true,
+  "type": "module",
+  "description": "Clean-room SQLFlow 3.6.16 embeddable UMD Widget SDK (window.SQLFlow) and 16 official demos",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@codemirror/lang-sql": "^6.8.0",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.35.0",
+    "@dagrejs/dagre": "^1.1.4",
+    "@sqlflow/ui-core": "workspace:*",
+    "@xyflow/react": "^12.3.6",
+    "clsx": "^2.1.1",
+    "codemirror": "^5.65.18",
+    "elkjs": "^0.9.3",
+    "html-to-image": "^1.11.11",
+    "jsencrypt": "^3.3.2",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.460.0",
+    "pako": "^2.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/codemirror": "^5.60.16",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.2",
+    "@types/pako": "^2.0.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

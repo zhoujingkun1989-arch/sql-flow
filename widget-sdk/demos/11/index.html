@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 11 — Client-Only DependencyGraph v1.0 · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 11</span>
+        <h1 class="demo-title">Client-Only DependencyGraph v1.0 via Dagre (Zero Backend)</h1>
+      </div>
+      <span class="demo-api-pill">visualizeDependencyGraph(depGraphV1Json)</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="dg-dagre-btn" class="demo-btn demo-btn-primary" type="button">Render with Dagre Layout</button>
+      <button id="dg-bfs-btn" class="demo-btn" type="button">Render with Topological BFS</button>
+      <button id="dg-focus-btn" class="demo-btn" type="button">Highlight Focus Node</button>
+      <span id="dg-status" class="demo-status">DependencyGraph v1.0 Valid</span>
+    </div>
+
+    <div class="demo-body">
+      <div class="demo-sidebar" style="width:360px;">
+        <strong>DependencyGraph v1.0 JSON</strong>
+        <textarea id="dg-json" class="demo-textarea" style="flex:1;min-height:280px;"></textarea>
+      </div>
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

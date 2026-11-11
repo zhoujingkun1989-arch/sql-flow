@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SQLFlow Widget Upstream JSON Slice Demo</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Upstream JSON</span>
+        <h1 class="demo-title">Precomputed JSON + Upstream Slice</h1>
+      </div>
+      <span class="demo-api-pill">visualizeJson(...) + upstream(...)</span>
+    </div>
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script>
+    (async function () {
+      var widget = await window.SQLFlow.init({
+        container: "#sqlflow",
+        toolbar: true,
+        minimap: true
+      });
+      window.sqlflowWidget = widget;
+      await widget.visualizeJson(window.SQLFlowDemoFixtures.ECOMMERCE_LINEAGE_JSON);
+      await widget.upstream("mart_customer_revenue", 2);
+    })();
+  </script>
+</body>
+</html>

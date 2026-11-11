@@ -1,0 +1,57 @@
+{
+  "mode": "global",
+  "sqlflow": {
+    "dbobjs": [
+      {
+        "id": "tbl_customers",
+        "database": "DEFAULT",
+        "schema": "sales",
+        "name": "customers",
+        "type": "table",
+        "columns": [
+          { "id": "col_cust_id", "name": "customer_id", "dataType": "BIGINT", "primaryKey": true },
+          { "id": "col_cust_email", "name": "email", "dataType": "VARCHAR(255)", "unqiueKey": true }
+        ]
+      },
+      {
+        "id": "tbl_orders",
+        "database": "DEFAULT",
+        "schema": "sales",
+        "name": "orders",
+        "type": "table",
+        "columns": [
+          { "id": "col_ord_id", "name": "order_id", "dataType": "BIGINT", "primaryKey": true },
+          { "id": "col_ord_cust_id", "name": "customer_id", "dataType": "BIGINT", "foreignKey": true },
+          { "id": "col_ord_total", "name": "order_total", "dataType": "DECIMAL(12,2)" }
+        ]
+      },
+      {
+        "id": "tbl_summary",
+        "database": "warehouse",
+        "schema": "analytics",
+        "name": "customer_order_summary",
+        "type": "view",
+        "columns": [
+          { "id": "col_sum_email", "name": "customer_email", "dataType": "VARCHAR(255)" },
+          { "id": "col_sum_rev", "name": "total_spent", "dataType": "DECIMAL(14,2)" }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r1",
+        "type": "fdd",
+        "effectType": "select",
+        "sources": [{ "id": "col_cust_email", "parentId": "tbl_customers" }],
+        "target": { "id": "col_sum_email", "parentId": "tbl_summary" }
+      },
+      {
+        "id": "r2",
+        "type": "fdd",
+        "effectType": "select",
+        "sources": [{ "id": "col_ord_total", "parentId": "tbl_orders", "transforms": [{ "type": "function", "code": "SUM(o.order_total)" }] }],
+        "target": { "id": "col_sum_rev", "parentId": "tbl_summary" }
+      }
+    ]
+  }
+}

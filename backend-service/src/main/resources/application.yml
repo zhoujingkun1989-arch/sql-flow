@@ -1,0 +1,52 @@
+server:
+  port: ${SQLFLOW_PORT:8165}
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types:
+      - application/json
+      - application/xml
+      - text/html
+      - text/xml
+      - text/plain
+      - text/css
+      - text/csv
+      - application/javascript
+      - text/javascript
+      - image/svg+xml
+  tomcat:
+    max-http-form-post-size: -1
+    max-swallow-size: -1
+
+spring:
+  application:
+    name: sqlflow-backend-service
+  profiles:
+    default: duckdb
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB
+      max-request-size: 500MB
+      file-size-threshold: 2MB
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    enabled-by-default: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+sqlflow:
+  home: ${SQLFLOW_HOME:.}
+  regular-job: true
+  analytical-store: duckdb
+  engine-version: 2.8.5.8
+  backend-version: 8.2.2.15
+  ui-version: 3.6.16
+  release-date: "2026-10-27 08:48:51"

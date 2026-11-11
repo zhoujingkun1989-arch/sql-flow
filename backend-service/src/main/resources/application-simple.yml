@@ -1,0 +1,3 @@
+sqlflow:
+  regular-job: false
+  analytical-store: none

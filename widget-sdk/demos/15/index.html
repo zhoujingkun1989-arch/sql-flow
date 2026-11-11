@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 15 — Live i18n Switching (en / cn) · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 15</span>
+        <h1 class="demo-title" id="i18n-page-title">国际化双语实时切换 · Live English / Simplified Chinese i18n</h1>
+      </div>
+      <span class="demo-api-pill">setOptions({ lang: 'en' | 'cn' })</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="lang-en-btn" class="demo-btn" type="button">English (lang: "en")</button>
+      <button id="lang-cn-btn" class="demo-btn demo-btn-primary" type="button">简体中文 (lang: "cn")</button>
+      <span id="i18n-status" class="demo-status">当前语言: 简体中文 (cn)</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 4 — Custom External Toolbar Controls · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 4</span>
+        <h1 class="demo-title">Host-Controlled External Toolbar (Frameless Canvas)</h1>
+      </div>
+      <span class="demo-api-pill">zoomIn · setOrientation · setting.* · exportCsv</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="ext-zoom-in" class="demo-btn" type="button">＋ Zoom In</button>
+      <button id="ext-zoom-out" class="demo-btn" type="button">－ Zoom Out</button>
+      <button id="ext-zoom-fit" class="demo-btn" type="button">⤢ Fit</button>
+      <button id="ext-zoom-reset" class="demo-btn" type="button">100%</button>
+      <button id="ext-orient" class="demo-btn" type="button">Layout: LR</button>
+      <input id="ext-search" class="demo-input" placeholder="Search table or column..." />
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;">
+        <input id="ext-indirect" type="checkbox" /> Indirect (FDR)
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;">
+        <input id="ext-transform" type="checkbox" /> Show Transforms
+      </label>
+      <button id="ext-export-csv" class="demo-btn demo-btn-primary" type="button">Export CSV</button>
+      <button id="ext-export-xml" class="demo-btn" type="button">Export XML</button>
+      <button id="ext-export-png" class="demo-btn" type="button">Export PNG</button>
+      <span id="ext-scale-readout" class="demo-status">Scale: 100%</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

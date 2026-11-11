@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.sqlflow</groupId>
+        <artifactId>sqlflow-parent</artifactId>
+        <version>8.2.2.15</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>graph-layout</artifactId>
+    <packaging>jar</packaging>
+    <name>SQLFlow Graph Layout &amp; Join Analysis</name>
+    <description>Hierarchical Sugiyama + RowLayouter layout, BFS slicing, join-analysis.v1, GraphML, and PNG renderer</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.sqlflow</groupId>
+            <artifactId>contracts</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Djava.awt.headless=true</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

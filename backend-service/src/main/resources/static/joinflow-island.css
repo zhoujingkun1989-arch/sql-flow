@@ -1,0 +1,3 @@
+/* SQLFlow JoinFlow Island Stylesheet Fallback */
+.joinflow-island-root { width: 100%; height: 100%; position: relative; }
+.join-analysis-highlight { background-color: rgba(99, 102, 241, 0.2); }

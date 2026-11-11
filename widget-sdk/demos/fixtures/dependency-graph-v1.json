@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "kind": "dependency-graph",
+  "direction": "upstream",
+  "focus": {
+    "nodeId": "mart_revenue"
+  },
+  "nodes": [
+    {
+      "id": "raw_orders",
+      "label": "raw.orders",
+      "table": "orders",
+      "schema": "raw",
+      "type": "table",
+      "expandable": true,
+      "columns": [
+        { "id": "ro_id", "name": "order_id", "dataType": "BIGINT", "primaryKey": true },
+        { "id": "ro_amt", "name": "amount", "dataType": "DECIMAL(12,2)" }
+      ]
+    },
+    {
+      "id": "mart_revenue",
+      "label": "mart.daily_revenue",
+      "table": "daily_revenue",
+      "schema": "mart",
+      "type": "view",
+      "columns": [
+        { "id": "mr_cnt", "name": "order_count", "dataType": "BIGINT" },
+        { "id": "mr_rev", "name": "gross_revenue", "dataType": "DECIMAL(14,2)" }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "raw_orders",
+      "target": "mart_revenue",
+      "relationType": "fdd",
+      "columnMappings": [
+        { "sourceColumnId": "ro_id", "targetColumnId": "mr_cnt", "transformCode": "COUNT(order_id)" },
+        { "sourceColumnId": "ro_amt", "targetColumnId": "mr_rev", "transformCode": "SUM(amount)" }
+      ]
+    }
+  ]
+}

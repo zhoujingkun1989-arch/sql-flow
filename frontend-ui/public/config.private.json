@@ -1,0 +1,10 @@
+{
+  "SERVER": "/api/gspLive_backend",
+  "Product": "private",
+  "ApiPrefix": "/api",
+  "Authorization": {
+    "base64token": ""
+  },
+  "userId": "gudu|0123456789",
+  "trialVersion": false
+}

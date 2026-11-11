@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 3 — Interactive Event Bus &amp; Click Callbacks · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 3</span>
+        <h1 class="demo-title">Typed Event Bus (nodeClick, columnClick, onFieldClick, edgeClick)</h1>
+      </div>
+      <span class="demo-api-pill">addEventListener / on / off / onFieldClick</span>
+    </div>
+
+    <div class="demo-controls">
+      <span>Click any table header, column row, Bézier edge, or canvas background:</span>
+      <button id="toggle-listener-btn" class="demo-btn" type="button">Pause Listeners</button>
+      <button id="clear-log-btn" class="demo-btn" type="button">Clear Event Log</button>
+      <span id="event-counter" class="demo-status">0 events captured</span>
+    </div>
+
+    <div class="demo-body">
+      <div class="demo-sidebar" style="width:380px;">
+        <strong>Real-Time SDK Event Stream</strong>
+        <div id="event-log" class="demo-log-list"></div>
+      </div>
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

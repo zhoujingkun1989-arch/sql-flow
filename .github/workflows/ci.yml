@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Set up Node.js 22 & pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack & install workspace dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build & test TypeScript packages
+        run: |
+          pnpm --filter @sqlflow/ui-core build
+          pnpm --filter @sqlflow/frontend-ui build
+          pnpm --filter @sqlflow/widget-sdk build
+          pnpm -r --if-present typecheck
+          pnpm --filter @sqlflow/ui-core test
+          pnpm --filter @sqlflow/frontend-ui test
+          pnpm --filter @sqlflow/widget-sdk test
+
+      - name: Build & test Java modules
+        run: mvn -B test package

@@ -1,0 +1,411 @@
+/**
+ * Complete Style-Isolated Stylesheet for SQLFlow Widget 3.6.16 (`sqlflow.widget.3.6.16.css`).
+ * Designed for same-origin `<iframe>` sandboxing and optional inline host mounting,
+ * with full `light` and `dark` theme variables.
+ */
+
+.sqlflow-widget-root,
+#App {
+  --sf-bg: #eeeeee;
+  --sf-surface: #ffffff;
+  --sf-surface-alt: #f7f8fa;
+  --sf-toolbar-bg: #33333d;
+  --sf-toolbar-text: #f3f4f6;
+  --sf-toolbar-border: #22222a;
+  --sf-border: #d9d9d9;
+  --sf-text: #1f2937;
+  --sf-text-muted: #6b7280;
+  --sf-primary: #1890ff;
+  --sf-primary-hover: #40a9ff;
+  --sf-danger: #ef4444;
+  --sf-success: #10b981;
+  --sf-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: verdana, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: var(--sf-text);
+  background-color: var(--sf-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sqlflow-widget-root[data-sqlflow-theme="dark"],
+#App[data-sqlflow-theme="dark"] {
+  --sf-bg: #181a20;
+  --sf-surface: #22252e;
+  --sf-surface-alt: #2a2e39;
+  --sf-toolbar-bg: #12141a;
+  --sf-toolbar-text: #e5e7eb;
+  --sf-toolbar-border: #2e3340;
+  --sf-border: #383e4e;
+  --sf-text: #f3f4f6;
+  --sf-text-muted: #9ca3af;
+  --sf-primary: #3b82f6;
+  --sf-primary-hover: #60a5fa;
+  --sf-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.sqlflow-widget-root *,
+.sqlflow-widget-root *::before,
+.sqlflow-widget-root *::after {
+  box-sizing: border-box;
+}
+
+/* Dark theme overrides for shared canvas surfaces */
+.sqlflow-widget-root[data-sqlflow-theme="dark"] [data-testid="sqlflow-lineage-canvas"],
+.sqlflow-widget-root[data-sqlflow-theme="dark"] [data-testid="sqlflow-lineage-empty"],
+.sqlflow-widget-root[data-sqlflow-theme="dark"] [data-testid="sqlflow-summary-interstitial"] {
+  background-color: #181a20 !important;
+  color: #e5e7eb !important;
+}
+
+.sqlflow-widget-root[data-sqlflow-theme="dark"] .sqlflow-node-card {
+  background-color: #232732 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.sqlflow-widget-root[data-sqlflow-theme="dark"] .sqlflow-field-row:not(.highlight):not(.mouseover) {
+  background-color: #232732 !important;
+  color: #e5e7eb !important;
+}
+
+.sqlflow-widget-root[data-sqlflow-theme="dark"] .sqlflow-field-row.mouseover {
+  background-color: #3b3328 !important;
+  color: #fde68a !important;
+}
+
+.sqlflow-widget-root[data-sqlflow-theme="dark"] .sqlflow-field-row.highlight {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+}
+
+/* Top Widget Toolbar */
+.sf-toolbar {
+  height: 42px;
+  min-height: 42px;
+  background-color: var(--sf-toolbar-bg);
+  color: var(--sf-toolbar-text);
+  border-bottom: 1px solid var(--sf-toolbar-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  gap: 8px;
+  z-index: 45;
+  user-select: none;
+}
+
+.sf-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.sf-brand-pill {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  color: #91c051;
+  padding-right: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  white-space: nowrap;
+}
+
+.sf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--sf-toolbar-text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.sf-btn:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.sf-btn-primary {
+  background-color: var(--sf-primary);
+  border-color: var(--sf-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sf-btn-primary:hover {
+  background-color: var(--sf-primary-hover);
+  border-color: var(--sf-primary-hover);
+}
+
+.sf-btn-active {
+  background-color: rgba(24, 144, 255, 0.28);
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+
+.sf-select {
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: #252732;
+  color: #f9fafb;
+  cursor: pointer;
+}
+
+/* Main Split Workspace */
+.sf-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  overflow: hidden;
+}
+
+.sf-editor-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 220px;
+  max-width: 65%;
+  background-color: var(--sf-surface);
+  border-right: 1px solid var(--sf-border);
+  flex-shrink: 0;
+}
+
+.sf-editor-header {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background-color: var(--sf-surface-alt);
+  border-bottom: 1px solid var(--sf-border);
+  font-size: 11px;
+}
+
+.sf-editor-splitter {
+  width: 5px;
+  cursor: col-resize;
+  background-color: var(--sf-border);
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.sf-editor-splitter:hover {
+  background-color: var(--sf-primary);
+}
+
+.sf-canvas-pane {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--sf-bg);
+}
+
+/* Popover menus (Settings & Export) */
+.sf-popover {
+  position: absolute;
+  top: 38px;
+  right: 10px;
+  min-width: 250px;
+  background-color: var(--sf-surface);
+  color: var(--sf-text);
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  box-shadow: var(--sf-shadow);
+  padding: 10px 12px;
+  z-index: 60;
+}
+
+.sf-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 12px;
+  gap: 10px;
+}
+
+.sf-menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sf-text);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sf-menu-item:hover {
+  background-color: var(--sf-surface-alt);
+}
+
+/* Context Menu */
+.sf-context-menu {
+  position: fixed;
+  min-width: 180px;
+  background-color: var(--sf-surface);
+  color: var(--sf-text);
+  border: 1px solid var(--sf-border);
+  border-radius: 4px;
+  box-shadow: var(--sf-shadow);
+  z-index: 70;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.sf-context-header {
+  background-color: #666666;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Toast Messages (`message.error`) */
+.sf-toast-stack {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.sf-toast {
+  pointer-events: auto;
+  padding: 7px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: var(--sf-shadow);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sf-toast-error {
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+.sf-toast-info {
+  background-color: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+}
+
+.sf-toast-success {
+  background-color: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+}
+
+/* SlideUp SQL Drawer */
+.sf-sql-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 220px;
+  background-color: var(--sf-surface);
+  border-top: 2px solid var(--sf-primary);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+}
+
+.sf-sql-drawer-header {
+  height: 30px;
+  padding: 0 10px;
+  background-color: var(--sf-surface-alt);
+  border-bottom: 1px solid var(--sf-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ER Diagram Cards (`04 §7.2`) */
+.sf-er-card {
+  position: absolute;
+  background-color: var(--sf-surface);
+  border: 1px solid #cbd5e1;
+  border-top: 6px solid #38c172;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+
+.sf-er-header {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  font-weight: 700;
+  font-size: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: move;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-er-row {
+  height: 18px;
+  line-height: 18px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sf-er-row:hover,
+.sf-er-row.sf-er-active {
+  background-color: #f4f4f4;
+  color: #a855f7;
+}
+
+/* Hide floating scale controls when `scaleControls: false` while retaining DOM buttons for programmatic zoom */
+[style*="--hide-scale"] [data-testid="sqlflow-scale-controls"] {
+  display: none !important;
+}
+

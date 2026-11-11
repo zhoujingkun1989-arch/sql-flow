@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 6 — Table-Only Summary Lineage · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 6</span>
+        <h1 class="demo-title">Table-Only Summary Lineage vs Column-Level Detail</h1>
+      </div>
+      <span class="demo-api-pill">visualizeTableLevel() · visualizeJson(..., { tableLevel: true })</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="mode-table-btn" class="demo-btn demo-btn-primary" type="button">Table-Level Summary</button>
+      <button id="mode-column-btn" class="demo-btn" type="button">Column-Level Detail</button>
+      <button id="live-table-level-btn" class="demo-btn" type="button">Call Backend visualizeTableLevel()</button>
+      <span id="demo6-stats" class="demo-status">Loading...</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

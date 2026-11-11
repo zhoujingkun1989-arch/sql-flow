@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 7 — Programmatic Table &amp; Column Highlighting · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 7</span>
+        <h1 class="demo-title">Programmatic Table &amp; Column Lineage Path Highlighting</h1>
+      </div>
+      <span class="demo-api-pill">highlightTable · highlightColumn · clearHighlight</span>
+    </div>
+
+    <div class="demo-controls">
+      <button class="demo-btn demo-btn-primary" data-hl-col="mart_customer_revenue:lifetime_revenue" type="button">
+        Highlight mart_customer_revenue.lifetime_revenue
+      </button>
+      <button class="demo-btn" data-hl-col="customers:email" type="button">
+        Highlight sales.customers.email
+      </button>
+      <button class="demo-btn" data-hl-tbl="sales.order_items" type="button">
+        Highlight Table sales.order_items
+      </button>
+      <input id="custom-tbl" class="demo-input" style="width:140px" placeholder="Table (e.g. orders)" />
+      <input id="custom-col" class="demo-input" style="width:140px" placeholder="Column (optional)" />
+      <button id="apply-hl-btn" class="demo-btn" type="button">Apply</button>
+      <button id="clear-hl-btn" class="demo-btn" type="button">Clear Highlight</button>
+      <span id="hl-result" class="demo-status">Ready</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

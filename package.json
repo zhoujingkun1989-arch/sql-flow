@@ -1,0 +1,31 @@
+{
+  "name": "sqlflow-workspace",
+  "version": "8.2.2-15",
+  "private": true,
+  "description": "Clean-room SQLFlow 8.2.2.15 frontend workspace aggregator",
+  "packageManager": "pnpm@10.34.3",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "build:core": "pnpm --filter @sqlflow/ui-core build",
+    "build:ui": "pnpm --filter @sqlflow/frontend-ui build",
+    "build:widget": "pnpm --filter @sqlflow/widget-sdk build",
+    "test": "pnpm --filter @sqlflow/ui-core test",
+    "test:core": "pnpm --filter @sqlflow/ui-core test",
+    "test:ui": "pnpm --filter @sqlflow/frontend-ui test",
+    "test:widget": "pnpm --filter @sqlflow/widget-sdk test",
+    "test:e2e": "pnpm --filter @sqlflow/e2e test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@sqlflow/e2e",
+  "version": "8.2.2-15",
+  "private": true,
+  "type": "module",
+  "description": "Black-box Playwright & REST contract verification suite for clean-room SQLFlow (:8165)",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sqlflow/ui-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

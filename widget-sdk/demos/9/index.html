@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 9 — Persisted Job Lineage Explorer · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 9</span>
+        <h1 class="demo-title">Persisted Batch Job Lineage &amp; Schema Tree Explorer</h1>
+      </div>
+      <span class="demo-api-pill">visualizeJob(jobId) · job.list.get() · job.lineage.getNodes()</span>
+    </div>
+
+    <div class="demo-controls">
+      <select id="job-select" class="demo-select" style="min-width:220px"></select>
+      <button id="load-job-btn" class="demo-btn demo-btn-primary" type="button">Load Selected Job</button>
+      <button id="refresh-jobs-btn" class="demo-btn" type="button">Refresh Backend Jobs</button>
+      <span id="job-status" class="demo-status">Initializing...</span>
+    </div>
+
+    <div class="demo-body">
+      <div class="demo-sidebar">
+        <strong>Schema Explorer (<code>job.lineage.getNodes()</code>)</strong>
+        <div id="schema-tree" style="flex:1;overflow-y:auto;font-size:12px;"></div>
+      </div>
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

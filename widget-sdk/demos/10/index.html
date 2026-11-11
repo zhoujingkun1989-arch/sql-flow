@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 10 — Upstream &amp; Downstream Interactive Slicing · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 10</span>
+        <h1 class="demo-title">Upstream Provenance &amp; Downstream Impact Slicing</h1>
+      </div>
+      <span class="demo-api-pill">upstream(target, hops) · downstream(target, hops) · resetSlice()</span>
+    </div>
+
+    <div class="demo-controls">
+      <label for="slice-target">Target:</label>
+      <select id="slice-target" class="demo-select">
+        <option value="customer_ltv" selected>customer_ltv (Middle CTE)</option>
+        <option value="mart_customer_revenue.lifetime_revenue">mart_customer_revenue.lifetime_revenue (Target Column)</option>
+        <option value="sales.customers">sales.customers (Source Table)</option>
+        <option value="sales.order_items">sales.order_items (Source Table)</option>
+      </select>
+      <label for="hop-distance">Max Hops:</label>
+      <input id="hop-distance" type="number" min="1" max="10" value="2" class="demo-input" style="width:64px;" />
+      <button id="btn-upstream" class="demo-btn demo-btn-primary" type="button">⬅ Trace Upstream</button>
+      <button id="btn-downstream" class="demo-btn demo-btn-primary" type="button">Trace Downstream ➡</button>
+      <button id="btn-reset-slice" class="demo-btn" type="button">Reset Full Graph</button>
+      <span id="slice-status" class="demo-status">Full Graph (6 objects)</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

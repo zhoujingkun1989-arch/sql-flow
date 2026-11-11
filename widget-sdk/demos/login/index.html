@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SQLFlow Widget Token Authentication Demo</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Auth</span>
+        <h1 class="demo-title">Widget Token &amp; User Identity Injection</h1>
+      </div>
+      <span class="demo-api-pill">token.set(...) · POST /user/generateToken</span>
+    </div>
+    <div class="demo-controls">
+      <input id="token-input" class="demo-input" style="width:280px" placeholder="Paste API token or leave guest default" />
+      <button id="apply-token-btn" class="demo-btn demo-btn-primary" type="button">Apply Token</button>
+      <span id="auth-status" class="demo-status">Default userId: gudu|0123456789</span>
+    </div>
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script>
+    (async function () {
+      var widget = await window.SQLFlow.init({
+        container: "#sqlflow",
+        toolbar: true,
+        editor: true
+      });
+      window.sqlflowWidget = widget;
+      await widget.visualizeJson(window.SQLFlowDemoFixtures.ECOMMERCE_LINEAGE_JSON, {
+        sqltext: window.SQLFlowDemoFixtures.ECOMMERCE_SQL
+      });
+      document.getElementById("apply-token-btn").addEventListener("click", function () {
+        var val = document.getElementById("token-input").value.trim();
+        widget.token.set(val);
+        document.getElementById("auth-status").textContent = val
+          ? "Active Authorization: Token " + val.slice(0, 12) + "..."
+          : "Cleared token (guest mode)";
+      });
+    })();
+  </script>
+</body>
+</html>

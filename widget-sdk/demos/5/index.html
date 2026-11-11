@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 5 — Entity-Relationship Diagram · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 5</span>
+        <h1 class="demo-title">Entity-Relationship Diagram (PK / UK unqiueKey / FK &amp; Mermaid Live)</h1>
+      </div>
+      <span class="demo-api-pill">visualizeER(ddl, vendor) · visualizeERJSON(json)</span>
+    </div>
+
+    <div class="demo-controls">
+      <select id="er-vendor" class="demo-select">
+        <option value="postgresql" selected>PostgreSQL</option>
+        <option value="oracle">Oracle</option>
+        <option value="mysql">MySQL</option>
+        <option value="snowflake">Snowflake</option>
+      </select>
+      <button id="run-er-btn" class="demo-btn demo-btn-primary" type="button">Visualize ER Diagram</button>
+      <button id="save-er-png-btn" class="demo-btn" type="button">Save ER as PNG</button>
+      <span id="er-status" class="demo-status">Ready</span>
+    </div>
+
+    <div class="demo-body">
+      <div class="demo-sidebar">
+        <strong>DDL Schema Statements</strong>
+        <textarea id="er-ddl" class="demo-textarea" style="flex:1;min-height:280px;"></textarea>
+      </div>
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

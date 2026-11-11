@@ -1,0 +1,3 @@
+sqlflow:
+  regular-job: true
+  analytical-store: duckdb

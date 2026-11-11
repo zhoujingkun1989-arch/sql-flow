@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 16 — Full Interactive SDK API Playground · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 16</span>
+        <h1 class="demo-title">Full Interactive SQLFlow Widget SDK API Playground</h1>
+      </div>
+      <span class="demo-api-pill">All Methods · Exports · Events · Lifecycle</span>
+    </div>
+
+    <div class="demo-body">
+      <div class="demo-sidebar" style="width:390px;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button id="pg-vis-json" class="demo-btn demo-btn-primary" type="button">visualizeJson</button>
+          <button id="pg-vis-dg" class="demo-btn" type="button">DependencyGraph v1</button>
+          <button id="pg-vis-er" class="demo-btn" type="button">visualizeERJSON</button>
+          <button id="pg-vis-join" class="demo-btn" type="button">visualizeJoinJSON</button>
+          <button id="pg-vis-cg" class="demo-btn" type="button">visualizeCGJSON</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button id="pg-hl-col" class="demo-btn" type="button">highlightColumn</button>
+          <button id="pg-upstream" class="demo-btn" type="button">upstream(2)</button>
+          <button id="pg-downstream" class="demo-btn" type="button">downstream(2)</button>
+          <button id="pg-reset" class="demo-btn" type="button">resetSlice</button>
+          <button id="pg-clear-hl" class="demo-btn" type="button">clearHighlight</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button id="pg-zoom-in" class="demo-btn" type="button">zoomIn()</button>
+          <button id="pg-zoom-out" class="demo-btn" type="button">zoomOut()</button>
+          <button id="pg-orient" class="demo-btn" type="button">Toggle LR/TB</button>
+          <button id="pg-theme" class="demo-btn" type="button">Toggle Dark/Light</button>
+          <button id="pg-lang" class="demo-btn" type="button">Toggle EN/CN</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button id="pg-exp-csv" class="demo-btn" type="button">Preview CSV</button>
+          <button id="pg-exp-xml" class="demo-btn" type="button">Preview XML</button>
+          <button id="pg-exp-json" class="demo-btn" type="button">Preview JSON</button>
+          <button id="pg-get-opts" class="demo-btn" type="button">getOptions()</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button id="pg-destroy" class="demo-btn" style="border-color:#ef4444;color:#b91c1c;" type="button">destroy()</button>
+          <button id="pg-reinit" class="demo-btn demo-btn-primary" type="button">Re-init Sandbox</button>
+        </div>
+
+        <strong>SDK Output / Return Inspector</strong>
+        <textarea id="pg-output" class="demo-textarea" readonly style="min-height:130px;"></textarea>
+
+        <strong>Live Event Bus Feed</strong>
+        <div id="pg-events" class="demo-log-list"></div>
+      </div>
+
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+file_path_database: __FILE__
+file_path_schema: s3/synintegration
+decrypt_replace_password:
+  enable: true
+  function:
+    - name: f_decrypt
+      index: 2
+    - name: f_aes_decrypt_ecb_ctr
+      index: 2
+
+# Optional AI Lineage Assistant configuration
+# Can also be controlled via environment variables AI_ENABLED, ANTHROPIC_API_KEY, AI_MODEL
+ai:
+  enabled: false
+  api-key: ""
+  model: claude-sonnet-4-20250514
+  max-subgraph-nodes: 300
+  default-hop-depth: 3
+  max-iterations: 3
+  timeout-seconds: 30
+  max-tokens: 1024

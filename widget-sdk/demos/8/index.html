@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 8 — Side-by-Side Multi-Instance Widgets · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 8</span>
+        <h1 class="demo-title">Multi-Instance Side-by-Side Isolated Sandboxes</h1>
+      </div>
+      <span class="demo-api-pill">2 Independent SQLFlow.init(...) Sandboxes</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="left-hl-btn" class="demo-btn demo-btn-primary" type="button">Left: Highlight orders</button>
+      <button id="right-hl-btn" class="demo-btn" type="button">Right: Highlight net_balance</button>
+      <button id="swap-themes-btn" class="demo-btn" type="button">Swap Left / Right Themes</button>
+      <span id="multi-status" class="demo-status">Both sandboxes isolated</span>
+    </div>
+
+    <div class="demo-body" style="gap:8px;padding:8px;background:#cbd5e1;">
+      <div style="flex:1;display:flex;flex-direction:column;border-radius:6px;overflow:hidden;border:1px solid #94a3b8;">
+        <div style="padding:6px 10px;background:#ffffff;border-bottom:1px solid #e2e8f0;font-weight:600;font-size:12px;">
+          Instance A · Light Theme · LR · E-Commerce Mart
+        </div>
+        <div id="sqlflow-left" style="flex:1;min-height:0;"></div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;border-radius:6px;overflow:hidden;border:1px solid #334155;">
+        <div style="padding:6px 10px;background:#0f172a;color:#f8fafc;border-bottom:1px solid #334155;font-weight:600;font-size:12px;">
+          Instance B · Dark Theme · TB · IFRS Trial Balance
+        </div>
+        <div id="sqlflow-right" style="flex:1;min-height:0;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

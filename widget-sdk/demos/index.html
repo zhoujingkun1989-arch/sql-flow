@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SQLFlow Widget SDK 3.6.16 — Official 16-Demo Portal</title>
+  <link rel="stylesheet" href="./sqlflow.widget.3.6.16.css" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .version-pill {
+      background: #1d4ed8;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    main {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px 32px 48px;
+    }
+    .preview-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .preview-header {
+      padding: 10px 16px;
+      background: #0b1120;
+      border-bottom: 1px solid #334155;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #portal-widget {
+      width: 100%;
+      height: 360px;
+      background: #fff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      border-radius: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      text-decoration: none;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #38bdf8;
+    }
+    .card-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .card h3 {
+      margin: 6px 0 8px;
+      font-size: 15px;
+    }
+    .card p {
+      margin: 0 0 12px;
+      font-size: 12.5px;
+      color: #94a3b8;
+      line-height: 1.45;
+    }
+    .card code {
+      font-size: 11px;
+      color: #a5f3fc;
+      background: #0f172a;
+      padding: 3px 6px;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 style="margin:0 0 6px;font-size:22px;">SQLFlow Embeddable Widget SDK</h1>
+      <div style="color:#94a3b8;font-size:13px;">
+        Standalone UMD Bundle (<code>window.SQLFlow.init</code>) &amp; 16 Official Interactive Demos
+      </div>
+    </div>
+    <span class="version-pill">v3.6.16 · 16 Official Demos</span>
+  </header>
+
+  <main>
+    <div class="preview-card">
+      <div class="preview-header">
+        <span>Live Embedded Sandbox Preview (<code>&lt;iframe class="sqlflow-widget-iframe"&gt;</code>)</span>
+        <span id="portal-status">Initializing...</span>
+      </div>
+      <div id="portal-widget"></div>
+    </div>
+
+    <div class="grid" id="demo-grid">
+      <a class="card" href="./1/index.html"><div><div class="card-num">Demo 1</div><h3>Core SQL Visualization</h3><p>Visualize live SQL text across 39 dialects via /gspLive_backend.</p></div><code>visualizeSQL(sql, vendor)</code></a>
+      <a class="card" href="./2/index.html"><div><div class="card-num">Demo 2</div><h3>Precomputed JSON Lineage</h3><p>Render SqlflowJSON / DataFlow payloads with zero backend HTTP calls.</p></div><code>visualizeJson(json)</code></a>
+      <a class="card" href="./3/index.html"><div><div class="card-num">Demo 3</div><h3>Interactive Event Listeners</h3><p>Subscribe to columnClick, onFieldClick, nodeClick, onTableNameClick &amp; edgeClick.</p></div><code>on('columnClick', fn)</code></a>
+      <a class="card" href="./4/index.html"><div><div class="card-num">Demo 4</div><h3>Custom External Toolbar</h3><p>Control zoom, orientation, search, settings &amp; exports from host UI.</p></div><code>zoomIn() / exportCsv()</code></a>
+      <a class="card" href="./5/index.html"><div><div class="card-num">Demo 5</div><h3>Entity-Relationship Diagram</h3><p>Render interactive PK / UK (unqiueKey) / FK ER cards &amp; Mermaid Live link.</p></div><code>visualizeER(ddl, vendor)</code></a>
+      <a class="card" href="./6/index.html"><div><div class="card-num">Demo 6</div><h3>Table-Only Summary Lineage</h3><p>Switch seamlessly between table-level summary and column-level lineage.</p></div><code>visualizeTableLevel()</code></a>
+      <a class="card" href="./7/index.html"><div><div class="card-num">Demo 7</div><h3>Programmatic Path Highlighting</h3><p>Highlight tables &amp; column-to-column lineage paths via SDK calls.</p></div><code>highlightColumn(tbl, col)</code></a>
+      <a class="card" href="./8/index.html"><div><div class="card-num">Demo 8</div><h3>Multi-Instance Side-by-Side</h3><p>Run two isolated iframe widget sandboxes simultaneously on one page.</p></div><code>SQLFlow.init(...) x 2</code></a>
+      <a class="card" href="./9/index.html"><div><div class="card-num">Demo 9</div><h3>Persisted Job Lineage Explorer</h3><p>Browse batch jobs, hierarchical schema tree &amp; sub-graph selection.</p></div><code>visualizeJob(jobId)</code></a>
+      <a class="card" href="./10/index.html"><div><div class="card-num">Demo 10</div><h3>Upstream &amp; Downstream Slicing</h3><p>Interactive N-hop upstream provenance &amp; downstream impact slicing.</p></div><code>upstream(target) / downstream()</code></a>
+      <a class="card" href="./11/index.html"><div><div class="card-num">Demo 11</div><h3>Client-Only DependencyGraph v1.0</h3><p>Validate &amp; lay out external DependencyGraph v1.0 via Dagre client-side.</p></div><code>visualizeDependencyGraph(dg)</code></a>
+      <a class="card" href="./12/index.html"><div><div class="card-num">Demo 12</div><h3>Custom Theme &amp; Visibility Toggles</h3><p>Live light/dark theming, chrome toggles &amp; ResizeObserver auto-layout.</p></div><code>setOptions({ theme, ... })</code></a>
+      <a class="card" href="./13/index.html"><div><div class="card-num">Demo 13</div><h3>Large Graph (&gt;200 Objects) Gate</h3><p>240-table enterprise warehouse summary interstitial gate &amp; domain filter.</p></div><code>&gt;200-Object Summary Gate</code></a>
+      <a class="card" href="./14/index.html"><div><div class="card-num">Demo 14</div><h3>Join Analysis &amp; Diagnostics</h3><p>Inspect INNER/LEFT/CROSS/SELF join operators &amp; 10 SQL diagnostic codes.</p></div><code>visualizeJoin(sql, vendor)</code></a>
+      <a class="card" href="./15/index.html"><div><div class="card-num">Demo 15</div><h3>Live i18n Switching (EN / 中文)</h3><p>Switch UI language dynamically between English (en) and Chinese (cn).</p></div><code>setOptions({ lang: 'cn' })</code></a>
+      <a class="card" href="./16/index.html"><div><div class="card-num">Demo 16</div><h3>Full Interactive SDK Playground</h3><p>End-to-end console testing every method, event, export &amp; destroy().</p></div><code>Complete SDK Workbench</code></a>
+    </div>
+  </main>
+
+  <script src="./sqlflow.widget.3.6.16.js"></script>
+  <script src="./fixtures/shared-demo-data.js"></script>
+  <script>
+    (async function () {
+      var widget = await window.SQLFlow.init({
+        container: "#portal-widget",
+        width: "100%",
+        height: 360,
+        toolbar: true,
+        minimap: true,
+        search: true
+      });
+      window.sqlflowWidget = widget;
+      await widget.visualizeJson(window.SQLFlowDemoFixtures.ECOMMERCE_LINEAGE_JSON, {
+        sqltext: window.SQLFlowDemoFixtures.ECOMMERCE_SQL
+      });
+      document.getElementById("portal-status").textContent =
+        "Ready · SDK v" + window.SQLFlow.version;
+    })();
+  </script>
+</body>
+</html>

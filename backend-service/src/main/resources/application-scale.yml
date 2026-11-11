@@ -1,0 +1,8 @@
+sqlflow:
+  regular-job: true
+  analytical-store: clickhouse
+  clickhouse:
+    url: ${CLICKHOUSE_URL:jdbc:clickhouse://localhost:8123/sqlflow}
+    username: ${CLICKHOUSE_USER:default}
+    password: ${CLICKHOUSE_PASSWORD:}
+    driver-class-name: ${CLICKHOUSE_DRIVER:com.clickhouse.jdbc.ClickHouseDriver}

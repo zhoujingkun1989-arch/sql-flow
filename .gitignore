@@ -1,0 +1,81 @@
+# ==============================================================================
+# Clean-Room SQLFlow Reconstruction — Git Ignore Rules
+# ==============================================================================
+
+# JVM / Maven / Gradle Build Outputs
+target/
+build/
+out/
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Node.js / Frontend / Widget Build & Test Outputs
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.turbo/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Runtime State, Databases, Logs, & Temp Directories
+sqlflow-volumes/
+data/
+log/
+logs/
+tmp/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+*.parquet
+*.bin
+*.proto
+*.pid
+
+# Local Secrets & Environment Overrides (Never Commit Credentials or Private Keys)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+conf/license*
+
+# OS, Editor, & Scratch Artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.scratch/
+scratch/

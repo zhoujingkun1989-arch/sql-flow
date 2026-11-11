@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo 13 — Large Graph (&gt;200 Objects) Summary Gate · SQLFlow Widget SDK 3.6.16</title>
+  <link rel="stylesheet" href="../sqlflow.widget.3.6.16.css" />
+  <link rel="stylesheet" href="../fixtures/demo-common.css" />
+</head>
+<body>
+  <div class="demo-page">
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <a class="demo-portal-link" href="../index.html">← All Demos</a>
+        <span class="demo-badge">Demo 13</span>
+        <h1 class="demo-title">Enterprise Large Graph (&gt;200-Object Summary Interstitial Gate)</h1>
+      </div>
+      <span class="demo-api-pill">240 Warehouse Tables · Summary Gate + Subgraph Slice</span>
+    </div>
+
+    <div class="demo-controls">
+      <button id="load-240-gate-btn" class="demo-btn demo-btn-primary" type="button">Load 240 Objects (Summary Gate Active)</button>
+      <button id="bypass-gate-btn" class="demo-btn" type="button">Force Render Full 240-Node Canvas</button>
+      <button id="slice-orders-domain-btn" class="demo-btn" type="button">Slice Upstream of mart_orders_001</button>
+      <span id="large-status" class="demo-status">240 Enterprise Objects Ready</span>
+    </div>
+
+    <div class="demo-body">
+      <div id="sqlflow" class="demo-widget-host"></div>
+    </div>
+  </div>
+
+  <script src="../sqlflow.widget.3.6.16.js"></script>
+  <script src="../fixtures/shared-demo-data.js"></script>
+  <script src="./index.js"></script>
+</body>
+</html>

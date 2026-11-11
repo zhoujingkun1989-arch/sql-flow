@@ -1,0 +1,5 @@
+packages:
+  - "ui-core"
+  - "frontend-ui"
+  - "widget-sdk"
+  - "deploy/e2e"
