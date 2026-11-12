@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="SQLFlow Banner">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120"/>
+      <stop offset="52%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="glowGreen" cx="22%" cy="28%" r="48%">
+      <stop offset="0%" stop-color="#84cc16" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#84cc16" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="82%" cy="62%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a3e635"/>
+      <stop offset="100%" stop-color="#65a30d"/>
+    </linearGradient>
+    <linearGradient id="flowCurve" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a3e635"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#334155" stroke-width="0.6" stroke-opacity="0.32"/>
+    </pattern>
+    <filter id="cardShadow" x="-10%" y="-10%" width="125%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="340" rx="18" fill="url(#bgGrad)"/>
+  <rect width="1200" height="340" rx="18" fill="url(#grid)"/>
+  <rect width="1200" height="340" rx="18" fill="url(#glowGreen)"/>
+  <rect width="1200" height="340" rx="18" fill="url(#glowBlue)"/>
+  <rect x="1" y="1" width="1198" height="338" rx="17" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.65"/>
+
+  <!-- Left Brand Block -->
+  <g transform="translate(56, 54)">
+    <!-- Logo Emblem -->
+    <rect x="0" y="0" width="54" height="54" rx="13" fill="url(#brandGrad)" filter="url(#cardShadow)"/>
+    <text x="27" y="36" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="25" font-weight="800" fill="#0f172a" letter-spacing="-0.5">SF</text>
+
+    <!-- Title -->
+    <text x="72" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="40" font-weight="800" fill="#f8fafc" letter-spacing="-0.8">SQLFlow</text>
+    <rect x="252" y="14" width="96" height="24" rx="12" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+    <text x="300" y="30" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="11.5" font-weight="600" fill="#a3e635">OPEN SOURCE</text>
+
+    <!-- Headlines -->
+    <text x="0" y="96" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="#e2e8f0">多方言 SQL 数据血缘 · ER 实体图 · 调用拓扑 · Join 风险诊断</text>
+    <text x="0" y="126" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14.5" font-weight="400" fill="#94a3b8">Self-hosted Column &amp; Table Lineage Engine, Visual Workspace, OpenAPI &amp; Embeddable Widget SDK</text>
+
+    <!-- Feature Pills -->
+    <g transform="translate(0, 158)" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif" font-size="12.5" font-weight="600">
+      <g transform="translate(0, 0)">
+        <rect width="122" height="32" rx="8" fill="#1e293b" stroke="#84cc16" stroke-opacity="0.55"/>
+        <circle cx="16" cy="16" r="4" fill="#a3e635"/>
+        <text x="28" y="20.5" fill="#ecfccb">39+ SQL 方言</text>
+      </g>
+      <g transform="translate(134, 0)">
+        <rect width="144" height="32" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-opacity="0.55"/>
+        <circle cx="16" cy="16" r="4" fill="#38bdf8"/>
+        <text x="28" y="20.5" fill="#e0f2fe">字段级 f(x) 溯源</text>
+      </g>
+      <g transform="translate(290, 0)">
+        <rect width="138" height="32" rx="8" fill="#1e293b" stroke="#34d399" stroke-opacity="0.55"/>
+        <circle cx="16" cy="16" r="4" fill="#34d399"/>
+        <text x="28" y="20.5" fill="#d1fae5">单容器开箱即用</text>
+      </g>
+      <g transform="translate(440, 0)">
+        <rect width="166" height="32" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-opacity="0.55"/>
+        <circle cx="16" cy="16" r="4" fill="#a78bfa"/>
+        <text x="28" y="20.5" fill="#ede9fe">REST API + Widget</text>
+      </g>
+    </g>
+
+    <!-- Sub-caption -->
+    <text x="0" y="222" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#64748b">Java 17 · Spring Boot 3.4 · React 18 · TypeScript · SQLite · DuckDB · Apache-2.0</text>
+  </g>
+
+  <!-- Right Interactive Lineage Mini-Illustration -->
+  <g transform="translate(695, 42)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <!-- Source Table 1: orders -->
+    <g transform="translate(0, 12)" filter="url(#cardShadow)">
+      <rect width="142" height="88" rx="7" fill="#1e293b" stroke="#475569"/>
+      <path d="M 0 7 Q 0 0 7 0 L 135 0 Q 142 0 142 7 L 142 25 L 0 25 Z" fill="#65a30d"/>
+      <text x="10" y="17" font-size="11" font-weight="700" fill="#ffffff">ods.orders</text>
+      <text x="10" y="43" font-size="10.5" fill="#cbd5e1">PK order_id</text>
+      <rect x="4" y="50" width="134" height="17" rx="3" fill="#334155"/>
+      <text x="10" y="62" font-size="10.5" font-weight="600" fill="#fde68a">customer_id</text>
+      <text x="10" y="80" font-size="10" fill="#94a3b8">order_date</text>
+    </g>
+
+    <!-- Source Table 2: order_items -->
+    <g transform="translate(0, 138)" filter="url(#cardShadow)">
+      <rect width="142" height="92" rx="7" fill="#1e293b" stroke="#475569"/>
+      <path d="M 0 7 Q 0 0 7 0 L 135 0 Q 142 0 142 7 L 142 25 L 0 25 Z" fill="#65a30d"/>
+      <text x="10" y="17" font-size="11" font-weight="700" fill="#ffffff">ods.order_items</text>
+      <text x="10" y="43" font-size="10.5" fill="#cbd5e1">FK order_id</text>
+      <rect x="4" y="49" width="134" height="17" rx="3" fill="#334155"/>
+      <text x="10" y="61" font-size="10.5" font-weight="600" fill="#7dd3fc">quantity</text>
+      <rect x="4" y="69" width="134" height="17" rx="3" fill="#334155"/>
+      <text x="10" y="81" font-size="10.5" font-weight="600" fill="#7dd3fc">unit_price</text>
+    </g>
+
+    <!-- Bezier Lineage Edges -->
+    <!-- Direct edge: customer_id -> customer_id -->
+    <path d="M 142 71 C 215 71, 225 99, 296 99" fill="none" stroke="#facc15" stroke-width="2.2"/>
+    <polygon points="296,99 288,95 288,103" fill="#facc15"/>
+
+    <!-- Transform edges: quantity & unit_price -> f(x) -> total_revenue -->
+    <path d="M 142 196 C 188 196, 192 142, 224 142" fill="none" stroke="url(#flowCurve)" stroke-width="2.2"/>
+    <path d="M 142 216 C 194 216, 194 142, 224 142" fill="none" stroke="url(#flowCurve)" stroke-width="2.2"/>
+    <path d="M 258 142 C 276 142, 280 123, 296 123" fill="none" stroke="url(#flowCurve)" stroke-width="2.4"/>
+    <polygon points="296,123 288,119 288,127" fill="#34d399"/>
+
+    <!-- Indirect JOIN dashed edge -->
+    <path d="M 142 52 C 205 52, 225 147, 296 147" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="4 3"/>
+
+    <!-- f(x) Transform Pill -->
+    <g transform="translate(206, 128)" filter="url(#cardShadow)">
+      <rect width="54" height="26" rx="13" fill="#0ea5e9" stroke="#bae6fd" stroke-width="1.2"/>
+      <text x="27" y="17" text-anchor="middle" font-size="11.5" font-weight="800" fill="#0f172a">f(x)</text>
+    </g>
+
+    <!-- Target View: dws.customer_revenue -->
+    <g transform="translate(296, 54)" filter="url(#cardShadow)">
+      <rect width="164" height="114" rx="7" fill="#1e293b" stroke="#34d399" stroke-width="1.4"/>
+      <path d="M 0 7 Q 0 0 7 0 L 157 0 Q 164 0 164 7 L 164 27 L 0 27 Z" fill="#059669"/>
+      <text x="10" y="18" font-size="11" font-weight="700" fill="#ffffff">dws.customer_rev</text>
+      <rect x="5" y="35" width="154" height="19" rx="3" fill="#334155"/>
+      <text x="11" y="48" font-size="10.5" font-weight="600" fill="#fde68a">customer_id</text>
+      <rect x="5" y="59" width="154" height="19" rx="3" fill="#0f172a" stroke="#38bdf8" stroke-width="0.9"/>
+      <text x="11" y="72" font-size="10.5" font-weight="700" fill="#7dd3fc">total_revenue</text>
+      <text x="11" y="96" font-size="9.5" fill="#94a3b8">SUM(qty * price)</text>
+    </g>
+  </g>
+</svg>

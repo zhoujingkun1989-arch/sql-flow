@@ -1,0 +1,18 @@
+services:
+  sqlflow:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: sqlflow:latest
+    container_name: sqlflow
+    restart: unless-stopped
+    ports:
+      - "8165:8165"
+    volumes:
+      - sqlflow_data:/sqlflow
+    environment:
+      - TZ=Asia/Shanghai
+      - AI_ENABLED=false
+
+volumes:
+  sqlflow_data:
