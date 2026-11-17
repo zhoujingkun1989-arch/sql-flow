@@ -656,17 +656,27 @@ public final class StatementParser {
             cur.matchWord("PERCENT");
         }
 
-        // MySQL `DELETE t1 FROM t1 JOIN t2 ...` vs standard `DELETE [FROM] tbl [AS alias] [USING ...]`
+        // MySQL `DELETE t1 FROM t1 JOIN t2 ...`, Inceptor `DELETE TABLE db.tbl`, Oracle/Inceptor `DELETE tbl PARTITION (...)`
         QualifiedName targetTable = null;
         String targetAlias = null;
+        if (cur.checkWord("TABLE") && !cur.peek(1).isSymbol(";") && !cur.peek(1).isEof()) {
+            cur.advance();
+        }
         if (!cur.checkWord("FROM") && cur.peek().isIdentifierLike()) {
             targetTable = cur.parseQualifiedName();
-            if (!cur.checkAnyWord("FROM", "USING", "WHERE", "OUTPUT", "RETURNING") && cur.peek().isIdentifierLike()) {
+            if (cur.matchWord("PARTITION") && cur.checkSymbol("(")) {
+                cur.skipParenthesizedGroup();
+            }
+            if (!cur.checkAnyWord("FROM", "USING", "WHERE", "OUTPUT", "RETURNING", "PARTITION")
+                    && cur.peek().isIdentifierLike()) {
                 if (cur.matchWord("AS") || !cur.checkSymbol(";")) {
-                    if (cur.peek().isIdentifierLike() && !cur.checkAnyWord("SET", "JOIN", "INNER", "LEFT")) {
+                    if (cur.peek().isIdentifierLike() && !cur.checkAnyWord("SET", "JOIN", "INNER", "LEFT", "PARTITION")) {
                         targetAlias = cur.advance().value();
                     }
                 }
+            }
+            if (cur.matchWord("PARTITION") && cur.checkSymbol("(")) {
+                cur.skipParenthesizedGroup();
             }
         }
 
@@ -677,6 +687,9 @@ public final class StatementParser {
 
         if (cur.matchWord("FROM")) {
             if (targetTable == null) {
+                if (cur.checkWord("TABLE") && !cur.peek(1).isSymbol(";") && !cur.peek(1).isEof()) {
+                    cur.advance();
+                }
                 TableSource first = queryParser.parseTableSource();
                 if (first instanceof io.sqlflow.lineage.ast.QueryAst.NamedTableSource nts) {
                     targetTable = nts.tableName();
@@ -734,11 +747,17 @@ public final class StatementParser {
         }
         cur.matchWord("INTO");
         QualifiedName targetTable = cur.parseQualifiedName();
+        if (cur.matchWord("PARTITION") && cur.checkSymbol("(")) {
+            cur.skipParenthesizedGroup();
+        }
         String targetAlias = null;
         if (cur.matchWord("AS") && cur.peek().isIdentifierLike()) {
             targetAlias = cur.advance().value();
         } else if (cur.peek().isIdentifierLike() && !cur.checkWord("USING")) {
             targetAlias = cur.advance().value();
+        }
+        if (cur.matchWord("PARTITION") && cur.checkSymbol("(")) {
+            cur.skipParenthesizedGroup();
         }
 
         cur.expectWord("USING");
@@ -791,7 +810,7 @@ public final class StatementParser {
                         SourceSpan.between(wStart, cur.previous().span())));
             } else if (cur.matchWord("INSERT")) {
                 List<String> insCols = cur.checkSymbol("(") && !cur.peek(1).isWord("VALUES")
-                        ? queryParser.parseIdentifierListInParens()
+                        ? parseMergeInsertColumnsInParens()
                         : List.of();
                 List<Expr> insVals = new ArrayList<>();
                 if (cur.matchWord("VALUES")) {
@@ -829,6 +848,26 @@ public final class StatementParser {
         return new MergeStmt(
                 targetTable, targetAlias, usingSource, onCond, rawOn, whenClauses, outputClause,
                 SourceSpan.between(startSpan, cur.previous().span()));
+    }
+
+    private List<String> parseMergeInsertColumnsInParens() {
+        cur.expectSymbol("(");
+        List<String> cols = new ArrayList<>();
+        if (!cur.checkSymbol(")")) {
+            do {
+                if (cur.checkSymbol(")")) {
+                    break;
+                }
+                QualifiedName qn = cur.parseQualifiedName();
+                if (!qn.isEmpty()) {
+                    cols.add(qn.lastName());
+                } else {
+                    cols.add(cur.advance().value());
+                }
+            } while (cur.matchSymbol(","));
+        }
+        cur.expectSymbol(")");
+        return cols;
     }
 
     // -------------------------------------------------------------------------

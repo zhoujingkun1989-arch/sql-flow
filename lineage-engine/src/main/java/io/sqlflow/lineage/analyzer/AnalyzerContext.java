@@ -70,6 +70,7 @@ public final class AnalyzerContext {
     private final Map<String, String> staticStringVars;
     private final Map<String, SqlStmt.CreateRoutineStmt> localRoutineAsts;
     private final Map<String, QueryExpr> viewAsts;
+    private Map<String, List<Transform>> transformCache;
     private int dynamicDepth;
     private int routineCallDepth;
 
@@ -85,6 +86,7 @@ public final class AnalyzerContext {
         this.staticStringVars = new LinkedHashMap<>();
         this.localRoutineAsts = new LinkedHashMap<>();
         this.viewAsts = new LinkedHashMap<>();
+        this.transformCache = new java.util.HashMap<>();
     }
 
     private AnalyzerContext(AnalyzerContext base, boolean isolateRoutineLocals) {
@@ -105,6 +107,7 @@ public final class AnalyzerContext {
         this.staticStringVars = isolateRoutineLocals ? new LinkedHashMap<>(base.staticStringVars) : base.staticStringVars;
         this.localRoutineAsts = base.localRoutineAsts;
         this.viewAsts = base.viewAsts;
+        this.transformCache = base.transformCache;
         this.dynamicDepth = base.dynamicDepth;
         this.routineCallDepth = base.routineCallDepth;
     }
@@ -113,6 +116,7 @@ public final class AnalyzerContext {
         AnalyzerContext child = new AnalyzerContext(this, false);
         child.sourceSql = sql;
         child.sqlHash = hash;
+        child.transformCache = new java.util.HashMap<>();
         if (unitVendor != null) {
             child.vendor = unitVendor;
         }
@@ -151,6 +155,7 @@ public final class AnalyzerContext {
     public AnalyzerContext withDynamicSql(String innerSql, EDbVendor innerVendor) {
         AnalyzerContext child = new AnalyzerContext(this, false);
         child.sourceSql = innerSql;
+        child.transformCache = new java.util.HashMap<>();
         if (innerVendor != null) {
             child.vendor = innerVendor;
         }
@@ -172,6 +177,14 @@ public final class AnalyzerContext {
         if (!option.isTransform()) {
             return null;
         }
+        String cacheKey = null;
+        if (span != null && span.isValid() && sourceSql != null && !sourceSql.isEmpty() && transformCache != null) {
+            cacheKey = type + ":" + span.startOffset() + ":" + span.endOffset();
+            List<Transform> cached = transformCache.get(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+        }
         String code = extractSql(span);
         if (code == null || code.isBlank()) {
             code = fallbackCode;
@@ -180,7 +193,11 @@ public final class AnalyzerContext {
             return null;
         }
         List<Coordinate> coords = option.isTransformCoordinate() ? mgr.toCoords(span, sqlHash) : null;
-        return List.of(new Transform(type, code, coords));
+        List<Transform> created = List.of(new Transform(type, code, coords));
+        if (cacheKey != null) {
+            transformCache.put(cacheKey, created);
+        }
+        return created;
     }
 
     public String varKey(String name) {
@@ -252,6 +269,24 @@ public final class AnalyzerContext {
                 clauseType,
                 mgr.toCoords(span, sqlHash),
                 makeTransforms(clauseType != null ? clauseType.toLowerCase(Locale.ROOT) : "select", span, null),
+                null,
+                null,
+                null);
+    }
+
+    /**
+     * Creates an internal positional/structural {@link BoundSourceRef} without synthesizing a
+     * {@link Transform} from statement- or query-wide AST spans.
+     */
+    public BoundSourceRef toPositionalSourceRef(
+            BoundObject obj, BoundColumn col, String alias, String clauseType, SourceSpan coordSpan) {
+        return new BoundSourceRef(
+                col,
+                obj,
+                alias,
+                clauseType,
+                mgr.toCoords(coordSpan, sqlHash),
+                null,
                 null,
                 null,
                 null);

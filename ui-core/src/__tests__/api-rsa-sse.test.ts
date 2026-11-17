@@ -514,4 +514,22 @@ describe("HTTP Client, Auth/userId Injection, Strict 1024-Bit RSA Scope & SSE St
     expect(form.get("defaultDatabase")).toBe("ANALYTICS");
     expect(form.get("defaultSchema")).toBe("PUBLIC");
   });
+
+  it("parses backend metadata (referencedNodes/Edges) and chunk (content/delta) fallbacks", () => {
+    const parser = new SseFrameParser();
+    const events = [
+      ...parser.feed(
+        'event:metadata\ndata:{"type":"metadata","referencedNodes":["a","b"],"referencedEdges":[{"from":"a","to":"b"}]}\n\n' +
+          'event:chunk\ndata:{"type":"chunk","content":"hello "}\n\n' +
+          'event:chunk\ndata:{"type":"chunk","delta":"world"}\n\n'
+      ),
+      ...parser.flush()
+    ];
+
+    expect(events).toEqual([
+      { type: "metadata", nodes: 2, edges: 1, truncated: false },
+      { type: "chunk", text: "hello " },
+      { type: "chunk", text: "world" }
+    ]);
+  });
 });

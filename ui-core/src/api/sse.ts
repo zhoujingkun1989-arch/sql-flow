@@ -107,18 +107,27 @@ export class SseFrameParser {
       }
 
       switch (resolvedType) {
-        case "metadata":
+        case "metadata": {
+          const fallbackNodes = Array.isArray(parsed.referencedNodes)
+            ? parsed.referencedNodes.length
+            : 0;
+          const fallbackEdges = Array.isArray(parsed.referencedEdges)
+            ? parsed.referencedEdges.length
+            : 0;
           return {
             type: "metadata",
-            nodes: Number(parsed.nodes ?? 0),
-            edges: Number(parsed.edges ?? 0),
+            nodes: Number(parsed.nodes ?? fallbackNodes),
+            edges: Number(parsed.edges ?? fallbackEdges),
             truncated: Boolean(parsed.truncated)
           };
-        case "chunk":
+        }
+        case "chunk": {
+          const rawText = parsed.text ?? parsed.content ?? parsed.delta;
           return {
             type: "chunk",
-            text: typeof parsed.text === "string" ? parsed.text : String(parsed.text ?? "")
+            text: typeof rawText === "string" ? rawText : String(rawText ?? "")
           };
+        }
         case "complete":
           return {
             type: "complete",

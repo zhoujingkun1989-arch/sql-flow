@@ -5,6 +5,7 @@ import io.sqlflow.contracts.lineage.EffectType;
 import io.sqlflow.contracts.lineage.EndpointIntroduction;
 import io.sqlflow.contracts.lineage.RelationshipType;
 import io.sqlflow.contracts.lineage.ResultSetType;
+import io.sqlflow.contracts.vendor.DataObjectType;
 import io.sqlflow.lineage.analyzer.ExpressionAnalyzer.EvalResult;
 import io.sqlflow.lineage.analyzer.ModelBindingManager.BoundColumn;
 import io.sqlflow.lineage.analyzer.ModelBindingManager.BoundObject;
@@ -34,8 +35,10 @@ import io.sqlflow.lineage.catalog.TSQLEnv.CatalogTable;
 import io.sqlflow.lineage.lexer.SourceSpan;
 import io.sqlflow.lineage.parser.StatementParser;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Semantic analyzer for {@code INSERT}, multi-table {@code INSERT ALL/FIRST}, {@code UPDATE},
@@ -306,7 +309,7 @@ public final class DmlAnalyzer {
                             SelectAndSetOpAnalyzer.emitIndirectEdges(ctx, EffectType.merge, miRs, midCol, branchInd, null);
                             ctx.mgr().addColumnEdge(
                                     RelationshipType.fdd, EffectType.merge_insert, tgtEntry.object(), tgtCol,
-                                    List.of(ctx.toSourceRef(miRs, midCol, null, "insert", wc.span())),
+                                    List.of(ctx.toPositionalSourceRef(miRs, midCol, null, "insert", null)),
                                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                         }
                     } else if (scope.entries().size() > 1) {
@@ -365,7 +368,7 @@ public final class DmlAnalyzer {
                 BoundColumn tc = target.getOrCreateColumn(ctx.mgr(), tcName, false, stmt.span(), ctx.sqlHash());
                 ctx.mgr().addColumnEdge(
                         RelationshipType.fdd, eff, target, tc,
-                        List.of(ctx.toSourceRef(srcObj, sc, null, "select", stmt.span())),
+                        List.of(ctx.toPositionalSourceRef(srcObj, sc, null, "select", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
         } else {
@@ -373,7 +376,7 @@ public final class DmlAnalyzer {
             BoundColumn tc = target.getOrCreateColumn(ctx.mgr(), "*", false, stmt.span(), ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, eff, target, tc,
-                    List.of(ctx.toSourceRef(srcObj, sc, null, "select", stmt.span())),
+                    List.of(ctx.toPositionalSourceRef(srcObj, sc, null, "select", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }
@@ -401,13 +404,13 @@ public final class DmlAnalyzer {
                 if (i < subCols.size()) {
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, eff, stagingRs, stgCol,
-                            List.of(ctx.toSourceRef(subRs, subCols.get(i), null, "update", ai.span())),
+                            List.of(ctx.toPositionalSourceRef(subRs, subCols.get(i), null, "update", null)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
                 SelectAndSetOpAnalyzer.emitIndirectEdges(ctx, eff, stagingRs, stgCol, indirect, null);
                 ctx.mgr().addColumnEdge(
                         RelationshipType.fdd, eff, tgtObj, tgtCol,
-                        List.of(ctx.toSourceRef(stagingRs, stgCol, null, "update", ai.span())),
+                        List.of(ctx.toPositionalSourceRef(stagingRs, stgCol, null, "update", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
             return;
@@ -432,7 +435,7 @@ public final class DmlAnalyzer {
             SelectAndSetOpAnalyzer.emitIndirectEdges(ctx, eff, stagingRs, stgCol, allInd, val.functionName());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, eff, tgtObj, tgtCol,
-                    List.of(ctx.toSourceRef(stagingRs, stgCol, null, "update", ai.span())),
+                    List.of(ctx.toPositionalSourceRef(stagingRs, stgCol, null, "update", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }
@@ -498,19 +501,76 @@ public final class DmlAnalyzer {
             EffectType eff,
             List<BoundSourceRef> extraIndirect) {
         List<BoundColumn> srcCols = srcRs.orderedColumns();
+        Set<String> usedInferredKeys = new HashSet<>();
         for (int i = 0; i < srcCols.size(); i++) {
             BoundColumn sc = srcCols.get(i);
             String tgtName = (targetColNames != null && i < targetColNames.size())
                     ? targetColNames.get(i)
-                    : sc.getName();
+                    : resolveInferredTargetColumnName(ctx, target, sc.getName(), i + 1, usedInferredKeys);
             SourceSpan sp = (targetColSpans != null && i < targetColSpans.size()) ? targetColSpans.get(i) : null;
             BoundColumn tc = target.getOrCreateColumn(ctx.mgr(), tgtName, false, sp, ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, eff, target, tc,
-                    List.of(ctx.toSourceRef(srcRs, sc, null, "insert", sp)),
+                    List.of(ctx.toPositionalSourceRef(srcRs, sc, null, "insert", sp)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             SelectAndSetOpAnalyzer.emitIndirectEdges(ctx, eff, target, tc, extraIndirect, null);
         }
+    }
+
+    public static String resolveInferredTargetColumnName(
+            AnalyzerContext ctx,
+            BoundObject target,
+            String rawName,
+            int oneBasedPos,
+            Set<String> usedInferredKeys) {
+        if ("*".equals(rawName) || (rawName != null && rawName.endsWith(".*"))) {
+            return rawName;
+        }
+        String candidate = rawName;
+        if (target != null
+                && (target.getCategory() == ObjectCategory.TABLE || target.getCategory() == ObjectCategory.VIEW)) {
+            candidate = sanitizePhysicalColumnName(rawName, oneBasedPos);
+        } else if (candidate == null || candidate.isBlank()) {
+            candidate = "COL_" + oneBasedPos;
+        }
+        if (usedInferredKeys != null) {
+            String key = ctx.env().lookupKey(DataObjectType.COLUMN, candidate, false);
+            if (!usedInferredKeys.add(key)) {
+                candidate = "COL_" + oneBasedPos;
+                String fallbackKey = ctx.env().lookupKey(DataObjectType.COLUMN, candidate, false);
+                int suffix = oneBasedPos + 1;
+                while (!usedInferredKeys.add(fallbackKey)) {
+                    candidate = "COL_" + suffix++;
+                    fallbackKey = ctx.env().lookupKey(DataObjectType.COLUMN, candidate, false);
+                }
+            }
+        }
+        return candidate;
+    }
+
+    private static String sanitizePhysicalColumnName(String rawName, int oneBasedPos) {
+        if (rawName == null) {
+            return "COL_" + oneBasedPos;
+        }
+        String trimmed = rawName.trim();
+        if (trimmed.isEmpty()) {
+            return "COL_" + oneBasedPos;
+        }
+        char first = trimmed.charAt(0);
+        if ((first >= '0' && first <= '9') || first == '\'' || first == '"') {
+            return "COL_" + oneBasedPos;
+        }
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+            if (Character.isWhitespace(c)
+                    || c == '\'' || c == '"' || c == '`' || c == '[' || c == ']'
+                    || c == '(' || c == ')' || c == ',' || c == ';' || c == ':'
+                    || c == '+' || c == '-' || c == '*' || c == '/'
+                    || c == '=' || c == '<' || c == '>' || c == '|') {
+                return "COL_" + oneBasedPos;
+            }
+        }
+        return trimmed;
     }
 
     private static List<String> resolveTargetColumnNames(
@@ -526,13 +586,16 @@ public final class DmlAnalyzer {
             }
             return names;
         }
-        List<String> fromObj = new ArrayList<>();
-        for (BoundColumn bc : targetObj.orderedColumns()) {
-            if (!"*".equals(bc.getName()) && !"RelationRows".equalsIgnoreCase(bc.getName())) {
-                fromObj.add(bc.getName());
+        if (Boolean.TRUE.equals(targetObj.getFromDDL()) || Boolean.TRUE.equals(targetObj.getCreatedInSql())) {
+            List<String> fromObj = new ArrayList<>();
+            for (BoundColumn bc : targetObj.orderedColumns()) {
+                if (!"*".equals(bc.getName()) && !"RelationRows".equalsIgnoreCase(bc.getName())) {
+                    fromObj.add(bc.getName());
+                }
             }
+            return fromObj;
         }
-        return fromObj;
+        return List.of();
     }
 
     private static BoundObject bindTableStageOrPath(QualifiedName qn, boolean isTarget, SourceSpan span, AnalyzerContext ctx) {
@@ -559,7 +622,7 @@ public final class DmlAnalyzer {
             BoundColumn sc = src.getOrCreateColumn(ctx.mgr(), eff.name(), false, span, ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.crud, eff, target, rr,
-                    List.of(ctx.toSourceRef(src, sc, null, eff.name(), span)),
+                    List.of(ctx.toPositionalSourceRef(src, sc, null, eff.name(), null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }

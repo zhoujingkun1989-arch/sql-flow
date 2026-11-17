@@ -571,6 +571,7 @@ class PersistenceJobParquetAndAiSseIntegrationTest {
         assertThat(sseResp.headers().firstValue("content-type").orElse("")).contains("text/event-stream");
         String sseBody = sseResp.body();
         assertThat(sseBody).contains("event:metadata").contains("event:chunk").contains("event:complete");
+        assertThat(sseBody).contains("\"nodes\":").contains("\"edges\":").contains("\"text\":\"Table `mart.revenue` \"");
         assertThat(sseBody).contains("mart.revenue");
     }
 }

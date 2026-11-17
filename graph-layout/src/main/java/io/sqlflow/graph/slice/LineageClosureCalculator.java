@@ -37,13 +37,30 @@ public final class LineageClosureCalculator {
     private record ColKey(String nodeId, String columnId) {
     }
 
-    private record UpstreamWalkStep(
-            ResolvedEndpoint endpoint,
-            RelationshipType dominantType,
-            String clause,
-            String timestampMin,
-            String timestampMax,
-            Set<ColKey> pathVisited) {
+    private static final class UpstreamFrame {
+        final ResolvedEndpoint endpoint;
+        final ColKey curKey;
+        final RelationshipType dominantType;
+        final String clause;
+        final List<ResolvedEdge> upstreamEdges;
+        final boolean addedToStack;
+        int edgeCursor;
+        boolean hasValidUpstream;
+
+        UpstreamFrame(
+                ResolvedEndpoint endpoint,
+                ColKey curKey,
+                RelationshipType dominantType,
+                String clause,
+                List<ResolvedEdge> upstreamEdges,
+                boolean addedToStack) {
+            this.endpoint = endpoint;
+            this.curKey = curKey;
+            this.dominantType = dominantType;
+            this.clause = clause;
+            this.upstreamEdges = upstreamEdges;
+            this.addedToStack = addedToStack;
+        }
     }
 
     private LineageClosureCalculator() {
@@ -119,118 +136,127 @@ public final class LineageClosureCalculator {
                 String minTs = null;
                 String maxTs = null;
 
-                Deque<UpstreamWalkStep> stack = new ArrayDeque<>();
+                Deque<UpstreamFrame> stack = new ArrayDeque<>();
                 ColKey startKey = new ColKey(tgtNode.getId(), tgtCol.getId());
+                Set<ColKey> onStack = new HashSet<>();
+                onStack.add(startKey);
+                Map<ColKey, RelationshipType> bestVisited = new HashMap<>();
+
                 for (ResolvedEdge first : directIncoming) {
                     if (first.source().node().isConstantTable()) {
                         continue;
                     }
-                    Set<ColKey> visited = new HashSet<>();
-                    visited.add(startKey);
+                    String fMin = first.relationship().getTimestampMin();
+                    if (fMin != null && (minTs == null || fMin.compareTo(minTs) < 0)) {
+                        minTs = fMin;
+                    }
+                    String fMax = first.relationship().getTimestampMax();
+                    if (fMax != null && (maxTs == null || fMax.compareTo(maxTs) > 0)) {
+                        maxTs = fMax;
+                    }
+                    NodeEntry fn = first.source().node();
+                    ColumnEntry fc = first.source().column();
+                    ColKey fKey = new ColKey(fn.getId(), fc != null ? fc.getId() : null);
+                    RelationshipType fType = first.relationType();
+                    RelationshipType prevBest = bestVisited.get(fKey);
+                    if (prevBest != null && fType.ordinal() >= prevBest.ordinal()) {
+                        continue;
+                    }
+                    bestVisited.put(fKey, fType);
                     String clause = first.rawSourceElement() != null && first.rawSourceElement().getClauseType() != null
                             ? first.rawSourceElement().getClauseType()
                             : (first.relationship().getClause() != null ? first.relationship().getClause() : "select");
-                    stack.push(new UpstreamWalkStep(
-                            first.source(),
-                            first.relationType(),
-                            clause,
-                            first.relationship().getTimestampMin(),
-                            first.relationship().getTimestampMax(),
-                            visited));
-                }
+                    List<ResolvedEdge> fUpstream = fc != null
+                            ? getIncomingForColumn(fn.getId(), fc.getId(), incomingByCol)
+                            : incomingByNode.getOrDefault(fn.getId(), List.of());
+                    boolean added = onStack.add(fKey);
+                    stack.push(new UpstreamFrame(first.source(), fKey, fType, clause, fUpstream, added));
 
-                while (!stack.isEmpty()) {
-                    UpstreamWalkStep step = stack.pop();
-                    if (step.timestampMin() != null && (minTs == null || step.timestampMin().compareTo(minTs) < 0)) {
-                        minTs = step.timestampMin();
-                    }
-                    if (step.timestampMax() != null && (maxTs == null || step.timestampMax().compareTo(maxTs) > 0)) {
-                        maxTs = step.timestampMax();
-                    }
-
-                    NodeEntry curNode = step.endpoint().node();
-                    ColumnEntry curCol = step.endpoint().column();
-                    ColKey curKey = new ColKey(curNode.getId(), curCol != null ? curCol.getId() : null);
-
-                    List<ResolvedEdge> upstreamEdges = curCol != null
-                            ? getIncomingForColumn(curNode.getId(), curCol.getId(), incomingByCol)
-                            : incomingByNode.getOrDefault(curNode.getId(), List.of());
-
-                    List<ResolvedEdge> nonCycleUpstream = new ArrayList<>();
-                    for (ResolvedEdge ue : upstreamEdges) {
-                        if (ue.source().node().isConstantTable()) {
-                            continue;
-                        }
-                        ColKey nextKey = new ColKey(
-                                ue.source().node().getId(),
-                                ue.source().column() != null ? ue.source().column().getId() : null);
-                        if (!step.pathVisited().contains(nextKey)) {
-                            nonCycleUpstream.add(ue);
-                        }
-                    }
-
-                    if (nonCycleUpstream.isEmpty()) {
-                        // Reached a left-most root origin!
-                        if (ignoreRecordSet && curNode.isResultSetLike()) {
-                            continue;
-                        }
-                        String dedupKey = curKey.nodeId() + "::" + (curKey.columnId() != null ? curKey.columnId() : "*");
-                        SourceTableColumn stc = rootSourceCols.get(dedupKey);
-                        if (stc == null) {
-                            stc = new SourceTableColumn();
-                            stc.setDatabase(curNode.getDatabase());
-                            stc.setSchema(curNode.getSchema());
-                            stc.setTableName(curNode.getName());
-                            stc.setTableAlias(curNode.getAlias());
-                            stc.setName(curCol != null ? curCol.getName() : curNode.getName());
-                            stc.setType(curNode.getType());
-                            stc.setClause(step.clause());
-                            stc.setRelationType(step.dominantType().wireName());
-                            rootSourceCols.put(dedupKey, stc);
-                        } else if ("fdd".equals(step.dominantType().wireName())) {
-                            stc.setRelationType("fdd");
-                        }
-
-                        SourceTableRef ref = new SourceTableRef();
-                        ref.setId(curNode.getId());
-                        ref.setName(curNode.getName());
-                        ref.setDatabase(curNode.getDatabase());
-                        ref.setSchema(curNode.getSchema());
-                        if (curCol != null) {
-                            ref.setColumnId(curCol.getId());
-                            ref.setColumnName(curCol.getName());
-                        }
-                        rootSourceRefs.putIfAbsent(dedupKey, ref);
-
-                        TableColumn rootTc = toTableColumn(curNode, curCol);
-                        rootAttrNodes.putIfAbsent(dedupKey, rootTc);
-                        if (seenTableRootKeys.add(dedupKey)) {
-                            tableRootNodes.add(rootTc);
-                        }
-                    } else {
-                        for (ResolvedEdge ue : nonCycleUpstream) {
-                            ColKey nextKey = new ColKey(
-                                    ue.source().node().getId(),
-                                    ue.source().column() != null ? ue.source().column().getId() : null);
-                            Set<ColKey> nextVisited = new HashSet<>(step.pathVisited());
-                            nextVisited.add(nextKey);
+                    while (!stack.isEmpty()) {
+                        UpstreamFrame frame = stack.peek();
+                        if (frame.edgeCursor < frame.upstreamEdges.size()) {
+                            ResolvedEdge ue = frame.upstreamEdges.get(frame.edgeCursor++);
+                            if (ue.source().node().isConstantTable()) {
+                                continue;
+                            }
+                            String eMin = ue.relationship().getTimestampMin();
+                            if (eMin != null && (minTs == null || eMin.compareTo(minTs) < 0)) {
+                                minTs = eMin;
+                            }
+                            String eMax = ue.relationship().getTimestampMax();
+                            if (eMax != null && (maxTs == null || eMax.compareTo(maxTs) > 0)) {
+                                maxTs = eMax;
+                            }
+                            NodeEntry nextNode = ue.source().node();
+                            ColumnEntry nextCol = ue.source().column();
+                            ColKey nextKey = new ColKey(nextNode.getId(), nextCol != null ? nextCol.getId() : null);
+                            if (onStack.contains(nextKey)) {
+                                continue;
+                            }
+                            frame.hasValidUpstream = true;
                             RelationshipType mergedType = RelationshipType.collapseTransitive(
-                                    step.dominantType(), ue.relationType());
+                                    frame.dominantType, ue.relationType());
+                            RelationshipType prev = bestVisited.get(nextKey);
+                            if (prev != null && mergedType.ordinal() >= prev.ordinal()) {
+                                continue;
+                            }
+                            bestVisited.put(nextKey, mergedType);
                             String nextClause = ue.rawSourceElement() != null
                                             && ue.rawSourceElement().getClauseType() != null
                                     ? ue.rawSourceElement().getClauseType()
-                                    : step.clause();
-                            stack.push(new UpstreamWalkStep(
-                                    ue.source(),
-                                    mergedType,
-                                    nextClause,
-                                    ue.relationship().getTimestampMin() != null
-                                            ? ue.relationship().getTimestampMin()
-                                            : step.timestampMin(),
-                                    ue.relationship().getTimestampMax() != null
-                                            ? ue.relationship().getTimestampMax()
-                                            : step.timestampMax(),
-                                    nextVisited));
+                                    : frame.clause;
+                            List<ResolvedEdge> nextUpstream = nextCol != null
+                                    ? getIncomingForColumn(nextNode.getId(), nextCol.getId(), incomingByCol)
+                                    : incomingByNode.getOrDefault(nextNode.getId(), List.of());
+                            boolean nextAdded = onStack.add(nextKey);
+                            stack.push(new UpstreamFrame(
+                                    ue.source(), nextKey, mergedType, nextClause, nextUpstream, nextAdded));
+                        } else {
+                            stack.pop();
+                            if (frame.addedToStack) {
+                                onStack.remove(frame.curKey);
+                            }
+                            if (!frame.hasValidUpstream) {
+                                NodeEntry curNode = frame.endpoint.node();
+                                ColumnEntry curCol = frame.endpoint.column();
+                                if (ignoreRecordSet && curNode.isResultSetLike()) {
+                                    continue;
+                                }
+                                String dedupKey = frame.curKey.nodeId() + "::"
+                                        + (frame.curKey.columnId() != null ? frame.curKey.columnId() : "*");
+                                SourceTableColumn stc = rootSourceCols.get(dedupKey);
+                                if (stc == null) {
+                                    stc = new SourceTableColumn();
+                                    stc.setDatabase(curNode.getDatabase());
+                                    stc.setSchema(curNode.getSchema());
+                                    stc.setTableName(curNode.getName());
+                                    stc.setTableAlias(curNode.getAlias());
+                                    stc.setName(curCol != null ? curCol.getName() : curNode.getName());
+                                    stc.setType(curNode.getType());
+                                    stc.setClause(frame.clause);
+                                    stc.setRelationType(frame.dominantType.wireName());
+                                    rootSourceCols.put(dedupKey, stc);
+                                } else if ("fdd".equals(frame.dominantType.wireName())) {
+                                    stc.setRelationType("fdd");
+                                }
+
+                                SourceTableRef ref = new SourceTableRef();
+                                ref.setId(curNode.getId());
+                                ref.setName(curNode.getName());
+                                ref.setDatabase(curNode.getDatabase());
+                                ref.setSchema(curNode.getSchema());
+                                if (curCol != null) {
+                                    ref.setColumnId(curCol.getId());
+                                    ref.setColumnName(curCol.getName());
+                                }
+                                rootSourceRefs.putIfAbsent(dedupKey, ref);
+
+                                TableColumn rootTc = toTableColumn(curNode, curCol);
+                                rootAttrNodes.putIfAbsent(dedupKey, rootTc);
+                                if (seenTableRootKeys.add(dedupKey)) {
+                                    tableRootNodes.add(rootTc);
+                                }
+                            }
                         }
                     }
                 }

@@ -160,29 +160,29 @@ public class SqlflowRuntimeConfig {
                         if (ai.has("enabled")) {
                             parsedAi.setEnabled(ai.get("enabled").asBoolean(parsedAi.isEnabled()));
                         }
-                        if (ai.hasNonNull("api_url")) {
-                            parsedAi.setApiUrl(ai.get("api_url").asText());
-                        } else if (ai.hasNonNull("base_url")) {
-                            parsedAi.setApiUrl(ai.get("base_url").asText());
-                        } else if (ai.hasNonNull("apiUrl")) {
-                            parsedAi.setApiUrl(ai.get("apiUrl").asText());
+                        String url = firstYamlText(ai, "api_url", "base_url", "apiUrl", "api-url");
+                        if (url != null) {
+                            parsedAi.setApiUrl(url);
                         }
-                        if (ai.hasNonNull("api_key")) {
-                            parsedAi.setApiKey(ai.get("api_key").asText());
-                        } else if (ai.hasNonNull("apiKey")) {
-                            parsedAi.setApiKey(ai.get("apiKey").asText());
+                        String key = firstYamlText(ai, "api_key", "apiKey", "api-key");
+                        if (key != null) {
+                            parsedAi.setApiKey(key);
                         }
-                        if (ai.hasNonNull("model")) {
-                            parsedAi.setModel(ai.get("model").asText());
+                        String model = firstYamlText(ai, "model");
+                        if (model != null) {
+                            parsedAi.setModel(model);
                         }
-                        if (ai.hasNonNull("max_tokens")) {
-                            parsedAi.setMaxTokens(ai.get("max_tokens").asInt(parsedAi.getMaxTokens()));
+                        Integer maxTokens = firstYamlInt(ai, "max_tokens", "maxTokens", "max-tokens");
+                        if (maxTokens != null && maxTokens > 0) {
+                            parsedAi.setMaxTokens(maxTokens);
                         }
                         if (ai.hasNonNull("temperature")) {
                             parsedAi.setTemperature(ai.get("temperature").asDouble(parsedAi.getTemperature()));
                         }
-                        if (ai.hasNonNull("timeout_seconds")) {
-                            parsedAi.setTimeoutSeconds(ai.get("timeout_seconds").asInt(parsedAi.getTimeoutSeconds()));
+                        Integer timeoutSeconds = firstYamlInt(
+                                ai, "timeout_seconds", "timeoutSeconds", "timeout-seconds");
+                        if (timeoutSeconds != null && timeoutSeconds > 0) {
+                            parsedAi.setTimeoutSeconds(timeoutSeconds);
                         }
                     }
                 }
@@ -194,15 +194,36 @@ public class SqlflowRuntimeConfig {
         this.aiConfig = parsedAi;
     }
 
+    private static String firstYamlText(JsonNode node, String... keys) {
+        for (String key : keys) {
+            if (node.hasNonNull(key)) {
+                String value = node.get(key).asText();
+                if (value != null && !value.isEmpty()) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Integer firstYamlInt(JsonNode node, String... keys) {
+        for (String key : keys) {
+            if (node.hasNonNull(key)) {
+                return node.get(key).asInt();
+            }
+        }
+        return null;
+    }
+
     private AiConfig defaultAiConfigFromEnv() {
         AiConfig cfg = new AiConfig();
         cfg.setEnabled(Boolean.parseBoolean(getRaw("ai.enabled", env.getProperty("sqlflow.ai.enabled", "false"))));
         cfg.setApiUrl(getRaw("ai.api_url", env.getProperty("sqlflow.ai.api-url", "https://api.openai.com/v1/chat/completions")));
         cfg.setApiKey(getRaw("ai.api_key", env.getProperty("sqlflow.ai.api-key", "")));
         cfg.setModel(getRaw("ai.model", env.getProperty("sqlflow.ai.model", "gpt-4o-mini")));
-        cfg.setMaxTokens(Integer.parseInt(env.getProperty("sqlflow.ai.max-tokens", "2048")));
+        cfg.setMaxTokens(getInt("ai.max_tokens", Integer.parseInt(env.getProperty("sqlflow.ai.max-tokens", "256000"))));
         cfg.setTemperature(Double.parseDouble(env.getProperty("sqlflow.ai.temperature", "0.2")));
-        cfg.setTimeoutSeconds(Integer.parseInt(env.getProperty("sqlflow.ai.timeout-seconds", "30")));
+        cfg.setTimeoutSeconds(getInt("ai.timeout_seconds", Integer.parseInt(env.getProperty("sqlflow.ai.timeout-seconds", "300"))));
         return cfg;
     }
 
@@ -220,10 +241,10 @@ public class SqlflowRuntimeConfig {
                     if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("//")) {
                         continue;
                     }
-                    int eq = rawLine.indexOf('=');
+                    int eq = findUnescapedEquals(rawLine);
                     if (eq > 0) {
-                        String patternStr = rawLine.substring(0, eq).trim();
-                        String replacement = rawLine.substring(eq + 1).trim();
+                        String patternStr = rawLine.substring(0, eq).trim().replace("\\=", "=");
+                        String replacement = rawLine.substring(eq + 1).trim().replace("\\=", "=");
                         if (!patternStr.isEmpty()) {
                             try {
                                 rules.add(new SqlMappingRule(Pattern.compile(patternStr), replacement));
@@ -238,6 +259,22 @@ public class SqlflowRuntimeConfig {
             }
         }
         this.sqlMappingRules = Collections.unmodifiableList(rules);
+    }
+
+    private static int findUnescapedEquals(String line) {
+        int backslashes = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '\\') {
+                backslashes++;
+            } else {
+                if (ch == '=' && (backslashes & 1) == 0) {
+                    return i;
+                }
+                backslashes = 0;
+            }
+        }
+        return -1;
     }
 
     public void setOverride(String key, String value) {
@@ -595,9 +632,9 @@ public class SqlflowRuntimeConfig {
         private String apiUrl = "https://api.openai.com/v1/chat/completions";
         private String apiKey = "";
         private String model = "gpt-4o-mini";
-        private int maxTokens = 2048;
+        private int maxTokens = 256000;
         private double temperature = 0.2;
-        private int timeoutSeconds = 30;
+        private int timeoutSeconds = 300;
 
         public AiConfig copy() {
             AiConfig c = new AiConfig();

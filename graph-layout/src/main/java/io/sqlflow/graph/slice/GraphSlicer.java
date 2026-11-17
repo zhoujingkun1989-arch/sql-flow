@@ -268,8 +268,7 @@ public final class GraphSlicer {
             record WalkState(
                     ResolvedEndpoint currentEp,
                     RelationshipType accumulatedType,
-                    List<Transform> accumulatedTransforms,
-                    Set<FrontierKey> pathVisited) {
+                    List<Transform> accumulatedTransforms) {
             }
 
             Deque<WalkState> stack = new ArrayDeque<>();
@@ -277,9 +276,9 @@ public final class GraphSlicer {
                     tgtNode.getId(),
                     startEdge.target().column() != null ? startEdge.target().column().getId() : null);
             List<Transform> initTransforms = collectTransforms(startEdge);
-            Set<FrontierKey> initVisited = new HashSet<>();
-            initVisited.add(firstMid);
-            stack.push(new WalkState(startEdge.target(), startEdge.relationType(), initTransforms, initVisited));
+            Map<FrontierKey, RelationshipType> bestMidSeen = new HashMap<>();
+            bestMidSeen.put(firstMid, startEdge.relationType());
+            stack.push(new WalkState(startEdge.target(), startEdge.relationType(), initTransforms));
 
             while (!stack.isEmpty()) {
                 WalkState state = stack.pop();
@@ -318,10 +317,10 @@ public final class GraphSlicer {
                         FrontierKey nextMid = new FrontierKey(
                                 hopTgtNode.getId(),
                                 hop.target().column() != null ? hop.target().column().getId() : null);
-                        if (!state.pathVisited().contains(nextMid)) {
-                            Set<FrontierKey> nextVisited = new HashSet<>(state.pathVisited());
-                            nextVisited.add(nextMid);
-                            stack.push(new WalkState(hop.target(), mergedType, mergedTransforms, nextVisited));
+                        RelationshipType prevBest = bestMidSeen.get(nextMid);
+                        if (prevBest == null || mergedType.ordinal() < prevBest.ordinal()) {
+                            bestMidSeen.put(nextMid, mergedType);
+                            stack.push(new WalkState(hop.target(), mergedType, mergedTransforms));
                         }
                     }
                 }

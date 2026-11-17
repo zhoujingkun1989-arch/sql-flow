@@ -233,6 +233,7 @@ public class LineageGenerationService {
 
         EDbVendor vendor = resolveVendor(firstNonBlank(params, "dbvendor", "dbVendor", "vendor", "database"));
         Option option = buildOption(params, vendor);
+        option.setOutput(false);
 
         String mappedSql = config.preprocessSql(rawSql);
         String userSchemaDdl = userSchemaService.loadCombinedUserSchemaDdl(userId, vendor.wireName());

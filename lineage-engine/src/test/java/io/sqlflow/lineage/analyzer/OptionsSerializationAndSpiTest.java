@@ -12,7 +12,9 @@ import io.sqlflow.contracts.lineage.Coordinate;
 import io.sqlflow.contracts.lineage.DataFlow;
 import io.sqlflow.contracts.lineage.Option;
 import io.sqlflow.contracts.lineage.Relationship;
+import io.sqlflow.contracts.lineage.RelationshipElement;
 import io.sqlflow.contracts.lineage.SqlInfo;
+import io.sqlflow.contracts.lineage.Transform;
 import io.sqlflow.contracts.spi.LineageEngineSpi;
 import io.sqlflow.contracts.spi.LineageEngineSpi.DegradationMode;
 import io.sqlflow.contracts.spi.LineageEngineSpi.LineageAnalysisRequest;
@@ -255,5 +257,69 @@ class OptionsSerializationAndSpiTest {
         LineageAnalysisResult tblRes = engine.analyze(LineageAnalysisRequest.ofSql(
                 "INSERT INTO dst (x) SELECT x FROM src;", tblOpt));
         assertEquals(DegradationMode.TABLE_ONLY, tblRes.getMode());
+    }
+
+    @Test
+    void unionAllCollapseAndOutputFalsePreventTransformExplosionAndRedundantXml() {
+        String hiveSql = """
+                INSERT INTO mart.rpt_summary PARTITION(dt='20261112')
+                SELECT
+                    t1.org_id,
+                    COALESCE(t1.amt, 0) * (SELECT MAX(fx.rate) FROM dim.fx_rates fx WHERE fx.ccy = t1.ccy) AS amt_cny
+                FROM stg.loan_a t1
+                INNER JOIN dim.org_map m1 ON t1.org_id = m1.org_id
+                WHERE t1.status = 'A'
+                GROUP BY t1.org_id, t1.amt, t1.ccy
+                UNION ALL
+                SELECT
+                    t2.org_id,
+                    CASE WHEN t2.amt > 0 THEN t2.amt ELSE 0 END AS amt_cny
+                FROM stg.loan_b t2
+                WHERE t2.status = 'B'
+                UNION ALL
+                SELECT
+                    t3.org_id,
+                    t3.amt AS amt_cny
+                FROM stg.loan_c t3
+                WHERE t3.status = 'C';
+                """;
+
+        Option opt = Option.forVendor(EDbVendor.dbvhive);
+        opt.setTransform(true);
+        opt.setSimpleOutput(true);
+        opt.setOutput(false);
+
+        LineageAnalysisResult res = engine.analyze(LineageAnalysisRequest.ofSql(hiveSql, opt));
+        assertNull(res.getDlineageXml());
+        assertNull(res.getXmlString());
+
+        DataFlow df = res.getDataFlow();
+        assertNotNull(df);
+        assertFalse(df.getRelationships().isEmpty());
+
+        boolean sawCaseOrExprTransform = false;
+        for (Relationship rel : df.getRelationships()) {
+            if (rel.getSources() == null) {
+                continue;
+            }
+            for (RelationshipElement src : rel.getSources()) {
+                if (src.getTransforms() == null) {
+                    continue;
+                }
+                for (Transform tr : src.getTransforms()) {
+                    String code = tr.getCode() != null ? tr.getCode() : "";
+                    assertFalse(
+                            code.toUpperCase().contains("UNION ALL"),
+                            "Transform code must not contain whole SetOp query text: " + code);
+                    assertFalse(
+                            code.toUpperCase().contains("INSERT INTO"),
+                            "Transform code must not contain whole INSERT statement text: " + code);
+                    if (code.contains("CASE WHEN") || code.contains("COALESCE")) {
+                        sawCaseOrExprTransform = true;
+                    }
+                }
+            }
+        }
+        assertTrue(sawCaseOrExprTransform, "Expected column-level CASE/COALESCE transforms to be preserved");
     }
 }

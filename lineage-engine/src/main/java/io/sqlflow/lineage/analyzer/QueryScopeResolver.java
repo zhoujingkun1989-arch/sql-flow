@@ -155,6 +155,13 @@ public final class QueryScopeResolver {
                         DataObjectType.TABLE, e.object().getName(), false, target, quoted)) {
                     return e;
                 }
+                if (e.alias() == null
+                        && e.object().getResultSetType() == io.sqlflow.contracts.lineage.ResultSetType.cte
+                        && e.object().getDisplayName() != null
+                        && ctx.env().identifiersMatch(
+                                DataObjectType.TABLE, e.object().getDisplayName(), false, target, quoted)) {
+                    return e;
+                }
             }
             return null;
         }
@@ -300,9 +307,7 @@ public final class QueryScopeResolver {
                     span);
             ScopeEntry matched = scope.matchTableQualifier(tblQual);
             if (matched != null) {
-                String colName = resolveAliasedColumnName(matched, name.lastName(), name.lastQuoted(), ctx);
-                BoundColumn col = matched.object().getOrCreateColumn(
-                        ctx.mgr(), colName, name.lastQuoted(), span, ctx.sqlHash());
+                BoundColumn col = resolveEntryColumn(matched, name.lastName(), name.lastQuoted(), span, ctx);
                 return List.of(ctx.toSourceRef(matched.object(), col, matched.alias(), clauseType, span));
             }
             // Fallback: struct field access on unqualified column in scope (e.g. payload.user_id)
@@ -336,15 +341,13 @@ public final class QueryScopeResolver {
         List<ScopeEntry> entries = scope.entries();
         if (entries.size() == 1) {
             ScopeEntry only = entries.get(0);
-            String actualCol = resolveAliasedColumnName(only, colName, quoted, ctx);
-            BoundColumn col = only.object().getOrCreateColumn(ctx.mgr(), actualCol, quoted, span, ctx.sqlHash());
+            BoundColumn col = resolveEntryColumn(only, colName, quoted, span, ctx);
             return List.of(ctx.toSourceRef(only.object(), col, only.alias(), clauseType, span));
         }
         if (entries.size() > 1) {
             for (ScopeEntry entry : entries) {
                 if (entryHasColumn(ctx, entry, colName, quoted)) {
-                    String actualCol = resolveAliasedColumnName(entry, colName, quoted, ctx);
-                    BoundColumn col = entry.object().getOrCreateColumn(ctx.mgr(), actualCol, quoted, span, ctx.sqlHash());
+                    BoundColumn col = resolveEntryColumn(entry, colName, quoted, span, ctx);
                     return List.of(ctx.toSourceRef(entry.object(), col, entry.alias(), clauseType, span));
                 }
             }
@@ -450,6 +453,33 @@ public final class QueryScopeResolver {
 
         List<ExpandedColumn> out = new ArrayList<>();
         for (ScopeEntry entry : targets) {
+            if (entry.catalogTable() == null && entry.object().getCategory() == ObjectCategory.RESULTSET) {
+                List<BoundColumn> rsCols = new ArrayList<>();
+                for (BoundColumn bc : entry.object().orderedColumns()) {
+                    if (bc.getName() != null && !"*".equals(bc.getName()) && !"RelationRows".equalsIgnoreCase(bc.getName())) {
+                        rsCols.add(bc);
+                    }
+                }
+                if (!rsCols.isEmpty()) {
+                    for (int i = 0; i < rsCols.size(); i++) {
+                        BoundColumn srcCol = rsCols.get(i);
+                        String rawColName = srcCol.getName();
+                        String exposedName = (entry.columnAliases() != null && i < entry.columnAliases().size())
+                                ? entry.columnAliases().get(i)
+                                : rawColName;
+                        if (isExcepted(ctx, exposedName, star.exceptColumns())) {
+                            continue;
+                        }
+                        String finalOutName = findRenamed(ctx, exposedName, star.renameColumns());
+                        Expr replaceExpr = findReplaced(ctx, exposedName, star.replaceColumns());
+                        out.add(new ExpandedColumn(
+                                finalOutName,
+                                ctx.toSourceRef(entry.object(), srcCol, entry.alias(), "SELECT", star.span()),
+                                replaceExpr));
+                    }
+                    continue;
+                }
+            }
             List<String> knownColNames = collectKnownColumnNames(ctx, entry);
             if (!knownColNames.isEmpty()) {
                 for (int i = 0; i < knownColNames.size(); i++) {
@@ -524,18 +554,20 @@ public final class QueryScopeResolver {
         return entry.object().findColumn(ctx.env(), colName, quoted) != null;
     }
 
-    private static String resolveAliasedColumnName(ScopeEntry entry, String colName, boolean quoted, AnalyzerContext ctx) {
+    private static BoundColumn resolveEntryColumn(
+            ScopeEntry entry, String colName, boolean quoted, SourceSpan span, AnalyzerContext ctx) {
         if (entry.columnAliases() != null && !entry.columnAliases().isEmpty()) {
             List<BoundColumn> cols = entry.object().orderedColumns();
             for (int i = 0; i < entry.columnAliases().size(); i++) {
                 if (ctx.env().identifiersMatch(DataObjectType.COLUMN, entry.columnAliases().get(i), false, colName, quoted)) {
                     if (i < cols.size()) {
-                        return cols.get(i).getName();
+                        cols.get(i).addCoordinates(ctx.mgr().toCoords(span, ctx.sqlHash()));
+                        return cols.get(i);
                     }
                 }
             }
         }
-        return colName;
+        return entry.object().getOrCreateColumn(ctx.mgr(), colName, quoted, span, ctx.sqlHash());
     }
 
     private static boolean isExcepted(AnalyzerContext ctx, String colName, List<String> excepts) {

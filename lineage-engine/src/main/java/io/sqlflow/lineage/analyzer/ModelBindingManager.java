@@ -1035,6 +1035,79 @@ public final class ModelBindingManager {
             return col;
         }
 
+        public BoundColumn createProjectedColumn(
+                ModelBindingManager mgr,
+                String rawColName,
+                boolean quotedCol,
+                SourceSpan span,
+                String sqlHash) {
+            String effectiveName = rawColName != null && !rawColName.isBlank() ? rawColName : "EXPR";
+            if ("RelationRows".equalsIgnoreCase(effectiveName)) {
+                return getOrCreateRelationRows(mgr);
+            }
+            String normName;
+            String baseKey;
+            if ("*".equals(effectiveName) || effectiveName.endsWith(".*") || category == ObjectCategory.RESULTSET) {
+                normName = quotedCol ? mgr.sqlEnv().profile().stripQuotes(effectiveName) : effectiveName;
+                baseKey = mgr.sqlEnv().lookupKey(DataObjectType.COLUMN, normName, quotedCol);
+                if (baseKey.isEmpty()) {
+                    baseKey = normName.toLowerCase(Locale.ROOT);
+                }
+            } else {
+                normName = mgr.sqlEnv().normalizePart(DataObjectType.COLUMN, effectiveName, quotedCol);
+                if (normName == null || normName.isEmpty()) {
+                    normName = effectiveName;
+                }
+                baseKey = mgr.sqlEnv().lookupKey(DataObjectType.COLUMN, normName, quotedCol);
+            }
+
+            String key = baseKey;
+            if (columns.containsKey(key)) {
+                int suffix = columns.size();
+                while (columns.containsKey(baseKey + "\u0000#" + suffix)) {
+                    suffix++;
+                }
+                key = baseKey + "\u0000#" + suffix;
+            }
+
+            BoundColumn col = new BoundColumn(mgr.nextObjectId(), this, normName);
+            if ("*".equals(normName) || normName.endsWith(".*")) {
+                col.setStar(Boolean.TRUE);
+            }
+            columns.put(key, col);
+            col.addCoordinates(mgr.toCoords(span, sqlHash));
+            return col;
+        }
+
+        public void applyColumnAliases(ModelBindingManager mgr, List<String> colAliases) {
+            if (colAliases == null || colAliases.isEmpty() || columns.isEmpty()) {
+                return;
+            }
+            List<BoundColumn> existing = new ArrayList<>(columns.values());
+            columns.clear();
+            for (int i = 0; i < existing.size(); i++) {
+                BoundColumn col = existing.get(i);
+                if (i < colAliases.size() && colAliases.get(i) != null && !colAliases.get(i).isBlank()) {
+                    String alias = colAliases.get(i);
+                    col.setName(alias);
+                    col.setDisplayName(alias);
+                }
+                String baseKey = mgr.sqlEnv().lookupKey(DataObjectType.COLUMN, col.getName(), false);
+                if (baseKey.isEmpty()) {
+                    baseKey = col.getName().toLowerCase(Locale.ROOT);
+                }
+                String key = baseKey;
+                if (columns.containsKey(key)) {
+                    int suffix = i;
+                    while (columns.containsKey(baseKey + "\u0000#" + suffix)) {
+                        suffix++;
+                    }
+                    key = baseKey + "\u0000#" + suffix;
+                }
+                columns.put(key, col);
+            }
+        }
+
         public BoundColumn findColumn(TSQLEnv env, String colName, boolean quoted) {
             if (colName == null) {
                 return null;

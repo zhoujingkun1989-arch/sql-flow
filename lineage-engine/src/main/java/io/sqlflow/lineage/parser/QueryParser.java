@@ -187,21 +187,22 @@ public final class QueryParser {
     private String matchSetOperator() {
         if (cur.matchWord("UNION")) {
             if (cur.matchWord("ALL")) {
-                cur.matchWords("BY", "NAME");
-                return "UNION ALL";
+                return cur.matchWords("BY", "NAME") ? "UNION ALL BY NAME" : "UNION ALL";
             }
             cur.matchWord("DISTINCT");
-            cur.matchWords("BY", "NAME");
+            if (cur.matchWords("BY", "NAME")) {
+                return cur.matchWord("ALL") ? "UNION ALL BY NAME" : "UNION BY NAME";
+            }
             return "UNION";
         }
         if (cur.matchWord("INTERSECT")) {
             cur.matchAnyWord("ALL", "DISTINCT");
-            return "INTERSECT";
+            return cur.matchWords("BY", "NAME") ? "INTERSECT BY NAME" : "INTERSECT";
         }
         if (cur.checkAnyWord("EXCEPT", "MINUS") && !isStarExceptModifier()) {
             String op = cur.advance().upperValue();
             cur.matchAnyWord("ALL", "DISTINCT");
-            return op;
+            return cur.matchWords("BY", "NAME") ? op + " BY NAME" : op;
         }
         return null;
     }

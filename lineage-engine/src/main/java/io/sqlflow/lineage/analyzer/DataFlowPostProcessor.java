@@ -207,6 +207,22 @@ public final class DataFlowPostProcessor {
                         inEdges = incomingByTargetCol.get(src.obj().peekRelationRows().getId());
                     }
                     if (inEdges == null) {
+                        List<BoundEdge> collected = new ArrayList<>();
+                        for (BoundColumn oc : src.obj().orderedColumns()) {
+                            List<BoundEdge> ocEdges = incomingByTargetCol.get(oc.getId());
+                            if (ocEdges != null) {
+                                for (BoundEdge e : ocEdges) {
+                                    if (e.getType() != RelationshipType.fdd) {
+                                        collected.add(e);
+                                    }
+                                }
+                            }
+                        }
+                        if (!collected.isEmpty()) {
+                            inEdges = collected;
+                        }
+                    }
+                    if (inEdges == null) {
                         continue;
                     }
                     for (BoundEdge inEdge : inEdges) {

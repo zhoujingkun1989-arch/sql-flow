@@ -429,10 +429,10 @@ public final class ExpressionAnalyzer {
                 String kind = subq.kind() != null ? subq.kind().toUpperCase(Locale.ROOT) : "SCALAR";
                 if (kind.contains("EXISTS")) {
                     BoundColumn rr = rs.getOrCreateRelationRows(ctx.mgr());
-                    indirect.add(ctx.toSourceRef(rs, rr, null, clauseType, subq.span()));
+                    indirect.add(ctx.toPositionalSourceRef(rs, rr, null, clauseType, null));
                 } else {
                     for (BoundColumn col : rs.orderedColumns()) {
-                        BoundSourceRef ref = ctx.toSourceRef(rs, col, null, clauseType, subq.span());
+                        BoundSourceRef ref = ctx.toPositionalSourceRef(rs, col, null, clauseType, null);
                         if (kind.contains("IN")) {
                             indirect.add(ref);
                         } else {
@@ -468,12 +468,29 @@ public final class ExpressionAnalyzer {
                 if (l != null && r != null) {
                     return l + r;
                 }
-                return l != null ? l : r;
+                if (l != null) {
+                    return appendDynamicPlaceholderIfNeeded(l);
+                }
+                if (r != null) {
+                    return prependDynamicPlaceholderIfNeeded(r);
+                }
             }
             return null;
         }
         if (expr instanceof Expr.FuncCallExpr fn) {
             String name = fn.name() != null ? fn.name().lastName().toUpperCase(Locale.ROOT) : "";
+            if (("CHR".equals(name) || "CHAR".equals(name)) && fn.args() != null && fn.args().size() == 1) {
+                String argVal = evalStaticString(fn.args().get(0), ctx);
+                if (argVal != null) {
+                    try {
+                        int code = Integer.parseInt(argVal.trim());
+                        if (code >= 1 && code <= 127) {
+                            return String.valueOf((char) code);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
             if (("CONCAT".equals(name) || "CONCAT_WS".equals(name)) && fn.args() != null) {
                 String sep = "CONCAT_WS".equals(name) && !fn.args().isEmpty()
                         ? evalStaticString(fn.args().get(0), ctx)
@@ -483,10 +500,14 @@ public final class ExpressionAnalyzer {
                 for (int i = start; i < fn.args().size(); i++) {
                     String part = evalStaticString(fn.args().get(i), ctx);
                     if (part != null) {
-                        if (i > start && sep != null) {
+                        if (!sb.isEmpty() && sep != null) {
                             sb.append(sep);
                         }
                         sb.append(part);
+                    } else if (!sb.isEmpty()) {
+                        String withPlaceholder = appendDynamicPlaceholderIfNeeded(sb.toString());
+                        sb.setLength(0);
+                        sb.append(withPlaceholder);
                     }
                 }
                 return sb.isEmpty() ? null : sb.toString();
@@ -501,6 +522,48 @@ public final class ExpressionAnalyzer {
             }
         }
         return null;
+    }
+
+    private static String appendDynamicPlaceholderIfNeeded(String left) {
+        if (hasOddSingleQuotes(left)) {
+            return left + "0";
+        }
+        String trimmed = left.stripTrailing();
+        if (trimmed.isEmpty()) {
+            return left;
+        }
+        char lastNonWs = trimmed.charAt(trimmed.length() - 1);
+        if (lastNonWs == '=' || lastNonWs == '<' || lastNonWs == '>' || lastNonWs == '('
+                || lastNonWs == ',' || lastNonWs == '+' || lastNonWs == '-'
+                || lastNonWs == '*' || lastNonWs == '/') {
+            return left + "0";
+        }
+        return left;
+    }
+
+    private static String prependDynamicPlaceholderIfNeeded(String right) {
+        if (hasOddSingleQuotes(right)) {
+            return "0" + right;
+        }
+        String trimmed = right.stripLeading();
+        if (trimmed.isEmpty()) {
+            return right;
+        }
+        char firstNonWs = trimmed.charAt(0);
+        if (firstNonWs == ')' || firstNonWs == ',') {
+            return "0" + right;
+        }
+        return right;
+    }
+
+    private static boolean hasOddSingleQuotes(String s) {
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == '\'') {
+                count++;
+            }
+        }
+        return (count & 1) == 1;
     }
 
     public static RelationshipType indirectRelType(AnalyzerContext ctx) {

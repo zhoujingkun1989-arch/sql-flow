@@ -17,5 +17,5 @@ ai:
   max-subgraph-nodes: 300
   default-hop-depth: 3
   max-iterations: 3
-  timeout-seconds: 30
-  max-tokens: 1024
+  timeout-seconds: 300
+  max-tokens: 256000

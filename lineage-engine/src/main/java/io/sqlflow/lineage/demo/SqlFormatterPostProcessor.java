@@ -178,7 +178,13 @@ final class SqlFormatterPostProcessor {
             String contIndent = line.substring(0, leadLen) + indentUnit;
             String remaining = line;
             while (remaining.length() > maxWidth) {
-                int splitAt = findSafeWrapPoint(remaining, maxWidth);
+                int lineCommentIdx = findUnquotedLineCommentStart(remaining);
+                // Never break inside a trailing '--' comment; if code before '--' already fits, keep line intact
+                if (lineCommentIdx >= 0 && lineCommentIdx <= maxWidth) {
+                    break;
+                }
+                int searchMax = lineCommentIdx >= 0 ? Math.min(maxWidth, lineCommentIdx - 1) : maxWidth;
+                int splitAt = findSafeWrapPoint(remaining, searchMax);
                 if (splitAt <= leadLen) {
                     break;
                 }
@@ -191,18 +197,76 @@ final class SqlFormatterPostProcessor {
         return String.join("\n", out);
     }
 
+    private static int findUnquotedLineCommentStart(String s) {
+        boolean inSingle = false;
+        boolean inDouble = false;
+        boolean inBacktick = false;
+        boolean inBlockComment = false;
+        for (int i = 0; i < s.length() - 1; i++) {
+            char c = s.charAt(i);
+            char next = s.charAt(i + 1);
+            if (inBlockComment) {
+                if (c == '*' && next == '/') {
+                    inBlockComment = false;
+                    i++;
+                }
+                continue;
+            }
+            if (!inSingle && !inDouble && !inBacktick) {
+                if (c == '/' && next == '*') {
+                    inBlockComment = true;
+                    i++;
+                    continue;
+                }
+                if ((c == '-' && next == '-') || (c == '/' && next == '/')) {
+                    return i;
+                }
+            }
+            if (c == '\'' && !inDouble && !inBacktick) {
+                inSingle = !inSingle;
+            } else if (c == '"' && !inSingle && !inBacktick) {
+                inDouble = !inDouble;
+            } else if (c == '`' && !inSingle && !inDouble) {
+                inBacktick = !inBacktick;
+            }
+        }
+        return -1;
+    }
+
     private static int findSafeWrapPoint(String s, int maxWidth) {
         boolean inSingle = false;
         boolean inDouble = false;
+        boolean inBacktick = false;
+        boolean inBlockComment = false;
         int best = -1;
         int limit = Math.min(s.length() - 1, maxWidth);
         for (int i = 0; i <= limit; i++) {
             char c = s.charAt(i);
-            if (c == '\'' && !inDouble) {
+            char next = i + 1 < s.length() ? s.charAt(i + 1) : '\0';
+            if (inBlockComment) {
+                if (c == '*' && next == '/') {
+                    inBlockComment = false;
+                    i++;
+                }
+                continue;
+            }
+            if (!inSingle && !inDouble && !inBacktick) {
+                if (c == '/' && next == '*') {
+                    inBlockComment = true;
+                    i++;
+                    continue;
+                }
+                if ((c == '-' && next == '-') || (c == '/' && next == '/')) {
+                    break;
+                }
+            }
+            if (c == '\'' && !inDouble && !inBacktick) {
                 inSingle = !inSingle;
-            } else if (c == '"' && !inSingle) {
+            } else if (c == '"' && !inSingle && !inBacktick) {
                 inDouble = !inDouble;
-            } else if (!inSingle && !inDouble && (c == ' ' || c == ',')) {
+            } else if (c == '`' && !inSingle && !inDouble) {
+                inBacktick = !inBacktick;
+            } else if (!inSingle && !inDouble && !inBacktick && (c == ' ' || c == ',')) {
                 best = c == ',' ? i + 1 : i;
             }
         }

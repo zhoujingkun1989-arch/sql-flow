@@ -208,7 +208,9 @@ public class AiLineageService {
      * {@code no_match}, or {@code error}) over {@code text/event-stream}.
      */
     public SseEmitter streamQuery(Map<String, String> params) {
-        SseEmitter emitter = new SseEmitter(60_000L);
+        SqlflowRuntimeConfig.AiConfig aiCfg = config.getAiConfig();
+        long emitterTimeoutMs = Math.max(60_000L, (Math.max(5, aiCfg.getTimeoutSeconds()) + 30L) * 1000L);
+        SseEmitter emitter = new SseEmitter(emitterTimeoutMs);
         String key = resolveSessionOrJobKey(params);
         String question = LineageGenerationService.firstNonBlank(params, "question", "query", "prompt");
 
@@ -217,7 +219,8 @@ public class AiLineageService {
                 if (question == null || question.isBlank()) {
                     sendSseFrame(emitter, "error", Map.of(
                             "type", "error",
-                            "error", "question is required"));
+                            "error", "question is required",
+                            "message", "question is required"));
                     emitter.complete();
                     return;
                 }
@@ -236,6 +239,9 @@ public class AiLineageService {
                 sendSseFrame(emitter, "metadata", Map.of(
                         "type", "metadata",
                         "sessionId", key,
+                        "nodes", indexed.nodes.size(),
+                        "edges", indexed.edges.size(),
+                        "truncated", false,
                         "referencedNodes", localAnalysis.getReferencedNodes(),
                         "referencedEdges", localAnalysis.getReferencedEdges(),
                         "confidence", localAnalysis.getConfidence()));
@@ -249,7 +255,11 @@ public class AiLineageService {
                     int step = Math.max(16, answer.length() / 3);
                     for (int i = 0; i < answer.length(); i += step) {
                         String delta = answer.substring(i, Math.min(answer.length(), i + step));
-                        sendSseFrame(emitter, "chunk", Map.of("type", "chunk", "content", delta, "delta", delta));
+                        sendSseFrame(emitter, "chunk", Map.of(
+                                "type", "chunk",
+                                "text", delta,
+                                "content", delta,
+                                "delta", delta));
                     }
                 }
 
@@ -264,9 +274,13 @@ public class AiLineageService {
             } catch (Exception e) {
                 log.debug("AI SSE stream error: {}", e.getMessage());
                 try {
+                    String errMsg = e.getMessage() != null && !e.getMessage().isBlank()
+                            ? e.getMessage()
+                            : "AI query failed";
                     sendSseFrame(emitter, "error", Map.of(
                             "type", "error",
-                            "error", e.getMessage() != null ? e.getMessage() : "AI query failed"));
+                            "error", errMsg,
+                            "message", errMsg));
                     emitter.complete();
                 } catch (Exception ignored) {
                 }
@@ -313,6 +327,8 @@ public class AiLineageService {
         }
 
         StringBuilder full = new StringBuilder();
+        String finishReason = "";
+        long lastKeepaliveMs = System.currentTimeMillis();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(resp.body(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -328,18 +344,35 @@ public class AiLineageService {
                 String delta = "";
                 JsonNode choices = node.path("choices");
                 if (choices.isArray() && !choices.isEmpty()) {
-                    delta = choices.get(0).path("delta").path("content").asText("");
+                    JsonNode firstChoice = choices.get(0);
+                    String fr = firstChoice.path("finish_reason").asText("");
+                    if (!fr.isEmpty() && !"null".equals(fr)) {
+                        finishReason = fr;
+                    }
+                    delta = firstChoice.path("delta").path("content").asText("");
                     if (delta.isEmpty()) {
-                        delta = choices.get(0).path("message").path("content").asText("");
+                        delta = firstChoice.path("message").path("content").asText("");
                     }
                 } else if (node.has("content")) {
                     delta = node.path("content").asText("");
                 }
                 if (!delta.isEmpty()) {
                     full.append(delta);
-                    sendSseFrame(emitter, "chunk", Map.of("type", "chunk", "content", delta, "delta", delta));
+                    sendSseFrame(emitter, "chunk", Map.of(
+                            "type", "chunk",
+                            "text", delta,
+                            "content", delta,
+                            "delta", delta));
+                    lastKeepaliveMs = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - lastKeepaliveMs >= 5_000L) {
+                    emitter.send(SseEmitter.event().comment("keepalive"));
+                    lastKeepaliveMs = System.currentTimeMillis();
                 }
             }
+        }
+        if (full.isEmpty()) {
+            String detail = finishReason.isEmpty() ? "" : " (finish_reason=" + finishReason + ")";
+            throw new IllegalStateException("Upstream AI returned empty content" + detail);
         }
         return full.toString();
     }

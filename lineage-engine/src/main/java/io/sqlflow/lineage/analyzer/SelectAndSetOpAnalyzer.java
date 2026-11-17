@@ -39,10 +39,12 @@ import io.sqlflow.lineage.ast.QueryAst.WindowSpec;
 import io.sqlflow.lineage.ast.SqlStmt.ColumnDef;
 import io.sqlflow.lineage.lexer.SourceSpan;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Semantic analyzer for {@code SELECT}, {@code WITH} CTEs, {@code JOIN}s, {@code PIVOT}/{@code UNPIVOT},
@@ -144,8 +146,11 @@ public final class SelectAndSetOpAnalyzer {
                 if (item.expr() instanceof Expr.StarExpr star) {
                     List<ExpandedColumn> expanded = QueryScopeResolver.expandStar(scope, star, targetRs, eff);
                     for (ExpandedColumn ec : expanded) {
-                        BoundColumn outCol = targetRs.getOrCreateColumn(
-                                ctx.mgr(), ec.outputName(), false, item.span(), ctx.sqlHash());
+                        BoundColumn outCol = "*".equals(ec.outputName())
+                                ? targetRs.getOrCreateColumn(
+                                        ctx.mgr(), ec.outputName(), false, item.span(), ctx.sqlHash())
+                                : targetRs.createProjectedColumn(
+                                        ctx.mgr(), ec.outputName(), false, item.span(), ctx.sqlHash());
                         if (ec.replaceExpr() != null) {
                             EvalResult rep = ExpressionAnalyzer.evaluate(
                                     ec.replaceExpr(), scope, "select", namedWindows);
@@ -159,7 +164,7 @@ public final class SelectAndSetOpAnalyzer {
                     if ("EXPR".equals(outName)) {
                         outName = "COL_" + itemIdx;
                     }
-                    BoundColumn outCol = targetRs.getOrCreateColumn(
+                    BoundColumn outCol = targetRs.createProjectedColumn(
                             ctx.mgr(),
                             outName,
                             item.aliasQuoted(),
@@ -281,10 +286,7 @@ public final class SelectAndSetOpAnalyzer {
                 if (cteRs != null) {
                     cteRs.setDisplayName(cte.name());
                     if (cte.columnAliases() != null && !cte.columnAliases().isEmpty()) {
-                        List<BoundColumn> cols = cteRs.orderedColumns();
-                        for (int i = 0; i < Math.min(cte.columnAliases().size(), cols.size()); i++) {
-                            cols.get(i).setDisplayName(cte.columnAliases().get(i));
-                        }
+                        cteRs.applyColumnAliases(ctx.mgr(), cte.columnAliases());
                     }
                     scope.registerCte(cte.name(), cte.nameQuoted(), cteRs);
                 }
@@ -303,6 +305,9 @@ public final class SelectAndSetOpAnalyzer {
             String rsName = sts.alias() != null && !sts.alias().isBlank() ? sts.alias() : null;
             BoundObject subRs = analyzeQuery(
                     sts.query(), scope, ctx, false, ResultSetType.select_list, rsName, EffectType.select);
+            if (subRs != null && sts.columnAliases() != null && !sts.columnAliases().isEmpty()) {
+                subRs.applyColumnAliases(ctx.mgr(), sts.columnAliases());
+            }
             ScopeEntry base = new ScopeEntry(
                     sts.alias(), sts.aliasQuoted(), subRs, null, sts.columnAliases(), !subRs.orderedColumns().isEmpty());
             return applyPivotOrUnpivot(base, sts.pivot(), sts.unpivot(), scope, ctx);
@@ -340,11 +345,11 @@ public final class SelectAndSetOpAnalyzer {
         } else if (jc.usingColumns() != null && !jc.usingColumns().isEmpty()) {
             for (String uCol : jc.usingColumns()) {
                 BoundColumn rCol = rightEntry.object().getOrCreateColumn(ctx.mgr(), uCol, false, jc.span(), ctx.sqlHash());
-                BoundSourceRef rRef = ctx.toSourceRef(rightEntry.object(), rCol, rightEntry.alias(), "join", jc.span());
+                BoundSourceRef rRef = ctx.toPositionalSourceRef(rightEntry.object(), rCol, rightEntry.alias(), "join", null);
                 queryIndirect.add(rRef);
                 for (ScopeEntry left : leftSnapshot) {
                     BoundColumn lCol = left.object().getOrCreateColumn(ctx.mgr(), uCol, false, jc.span(), ctx.sqlHash());
-                    BoundSourceRef lRef = ctx.toSourceRef(left.object(), lCol, left.alias(), "join", jc.span());
+                    BoundSourceRef lRef = ctx.toPositionalSourceRef(left.object(), lCol, left.alias(), "join", null);
                     queryIndirect.add(lRef);
                     if (ctx.option().isShowJoin()) {
                         ctx.mgr().addColumnEdge(
@@ -358,7 +363,7 @@ public final class SelectAndSetOpAnalyzer {
             for (BoundColumn lCol : left.object().orderedColumns()) {
                 BoundColumn rCol = rightEntry.object().findColumn(ctx.env(), lCol.getName(), false);
                 if (rCol != null) {
-                    BoundSourceRef lRef = ctx.toSourceRef(left.object(), lCol, left.alias(), "join", jc.span());
+                    BoundSourceRef lRef = ctx.toPositionalSourceRef(left.object(), lCol, left.alias(), "join", null);
                     queryIndirect.add(lRef);
                     if (ctx.option().isShowJoin()) {
                         ctx.mgr().addColumnEdge(
@@ -465,7 +470,7 @@ public final class SelectAndSetOpAnalyzer {
             if (pivot.forColumns() != null) {
                 for (String fc : pivot.forColumns()) {
                     BoundColumn col = base.object().getOrCreateColumn(ctx.mgr(), fc, false, pivot.span(), ctx.sqlHash());
-                    forRefs.add(ctx.toSourceRef(base.object(), col, base.alias(), "where", pivot.span()));
+                    forRefs.add(ctx.toPositionalSourceRef(base.object(), col, base.alias(), "where", null));
                 }
             }
             for (BoundColumn bc : base.object().orderedColumns()) {
@@ -475,7 +480,7 @@ public final class SelectAndSetOpAnalyzer {
                     BoundColumn out = pivRs.getOrCreateColumn(ctx.mgr(), bc.getName(), false, pivot.span(), ctx.sqlHash());
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.select, pivRs, out,
-                            List.of(ctx.toSourceRef(base.object(), bc, base.alias(), "select", pivot.span())),
+                            List.of(ctx.toPositionalSourceRef(base.object(), bc, base.alias(), "select", null)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -510,7 +515,7 @@ public final class SelectAndSetOpAnalyzer {
         if (unpivot.inSourceColumns() != null) {
             for (String sc : unpivot.inSourceColumns()) {
                 BoundColumn col = base.object().getOrCreateColumn(ctx.mgr(), sc, false, unpivot.span(), ctx.sqlHash());
-                inColRefs.add(ctx.toSourceRef(base.object(), col, base.alias(), "select", unpivot.span()));
+                inColRefs.add(ctx.toPositionalSourceRef(base.object(), col, base.alias(), "select", null));
             }
         }
         for (BoundColumn bc : base.object().orderedColumns()) {
@@ -520,7 +525,7 @@ public final class SelectAndSetOpAnalyzer {
                 BoundColumn pass = unpivRs.getOrCreateColumn(ctx.mgr(), bc.getName(), false, unpivot.span(), ctx.sqlHash());
                 ctx.mgr().addColumnEdge(
                         RelationshipType.fdd, EffectType.select, unpivRs, pass,
-                        List.of(ctx.toSourceRef(base.object(), bc, base.alias(), "select", unpivot.span())),
+                        List.of(ctx.toPositionalSourceRef(base.object(), bc, base.alias(), "select", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
         }
@@ -562,21 +567,54 @@ public final class SelectAndSetOpAnalyzer {
 
         List<BoundColumn> lCols = leftRs != null ? leftRs.orderedColumns() : List.of();
         List<BoundColumn> rCols = rightRs != null ? rightRs.orderedColumns() : List.of();
-        int width = Math.max(lCols.size(), rCols.size());
         EffectType eff = effectType != null ? effectType : EffectType.select;
-        for (int i = 0; i < width; i++) {
-            String outName = i < lCols.size() ? lCols.get(i).getName() : rCols.get(i).getName();
-            BoundColumn uCol = unionRs.getOrCreateColumn(ctx.mgr(), outName, false, setOp.span(), ctx.sqlHash());
-            List<BoundSourceRef> srcs = new ArrayList<>(2);
-            if (i < lCols.size()) {
-                srcs.add(ctx.toSourceRef(leftRs, lCols.get(i), null, "select", setOp.span()));
+        if (op.contains("BY NAME")) {
+            boolean[] rUsed = new boolean[rCols.size()];
+            for (BoundColumn lc : lCols) {
+                BoundColumn uCol = unionRs.createProjectedColumn(
+                        ctx.mgr(), lc.getName(), false, setOp.span(), ctx.sqlHash());
+                List<BoundSourceRef> srcs = new ArrayList<>(2);
+                srcs.add(ctx.toPositionalSourceRef(leftRs, lc, null, "select", null));
+                for (int j = 0; j < rCols.size(); j++) {
+                    if (!rUsed[j] && ctx.env().identifiersMatch(
+                            DataObjectType.COLUMN, lc.getName(), false, rCols.get(j).getName(), false)) {
+                        rUsed[j] = true;
+                        srcs.add(ctx.toPositionalSourceRef(rightRs, rCols.get(j), null, "select", null));
+                        break;
+                    }
+                }
+                ctx.mgr().addColumnEdge(
+                        RelationshipType.fdd, eff, unionRs, uCol, srcs,
+                        ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
-            if (i < rCols.size()) {
-                srcs.add(ctx.toSourceRef(rightRs, rCols.get(i), null, "select", setOp.span()));
+            for (int j = 0; j < rCols.size(); j++) {
+                if (!rUsed[j]) {
+                    BoundColumn rc = rCols.get(j);
+                    BoundColumn uCol = unionRs.createProjectedColumn(
+                            ctx.mgr(), rc.getName(), false, setOp.span(), ctx.sqlHash());
+                    List<BoundSourceRef> srcs = List.of(
+                            ctx.toPositionalSourceRef(rightRs, rc, null, "select", null));
+                    ctx.mgr().addColumnEdge(
+                            RelationshipType.fdd, eff, unionRs, uCol, srcs,
+                            ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
+                }
             }
-            ctx.mgr().addColumnEdge(
-                    RelationshipType.fdd, eff, unionRs, uCol, srcs,
-                    ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
+        } else {
+            int width = Math.max(lCols.size(), rCols.size());
+            for (int i = 0; i < width; i++) {
+                String outName = i < lCols.size() ? lCols.get(i).getName() : rCols.get(i).getName();
+                BoundColumn uCol = unionRs.createProjectedColumn(ctx.mgr(), outName, false, setOp.span(), ctx.sqlHash());
+                List<BoundSourceRef> srcs = new ArrayList<>(2);
+                if (i < lCols.size()) {
+                    srcs.add(ctx.toPositionalSourceRef(leftRs, lCols.get(i), null, "select", null));
+                }
+                if (i < rCols.size()) {
+                    srcs.add(ctx.toPositionalSourceRef(rightRs, rCols.get(i), null, "select", null));
+                }
+                ctx.mgr().addColumnEdge(
+                        RelationshipType.fdd, eff, unionRs, uCol, srcs,
+                        ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
+            }
         }
         return unionRs;
     }
@@ -638,7 +676,7 @@ public final class SelectAndSetOpAnalyzer {
                     BoundColumn vc = varObj.getOrCreateColumn(ctx.mgr(), cn, false, v.span(), ctx.sqlHash());
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.select, varObj, vc,
-                            List.of(ctx.toSourceRef(srcRs, srcCols.get(i), null, "select", v.span())),
+                            List.of(ctx.toPositionalSourceRef(srcRs, srcCols.get(i), null, "select", v.span())),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -653,15 +691,16 @@ public final class SelectAndSetOpAnalyzer {
     public static void wirePositionalFlow(
             AnalyzerContext ctx, BoundObject srcObj, BoundObject tgtObj, List<String> explicitTgtCols, EffectType effect) {
         List<BoundColumn> srcCols = srcObj.orderedColumns();
+        Set<String> usedInferredKeys = new HashSet<>();
         for (int i = 0; i < srcCols.size(); i++) {
             BoundColumn sc = srcCols.get(i);
             String tgtColName = (explicitTgtCols != null && i < explicitTgtCols.size())
                     ? explicitTgtCols.get(i)
-                    : sc.getName();
+                    : DmlAnalyzer.resolveInferredTargetColumnName(ctx, tgtObj, sc.getName(), i + 1, usedInferredKeys);
             BoundColumn tc = tgtObj.getOrCreateColumn(ctx.mgr(), tgtColName, false, null, ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, effect, tgtObj, tc,
-                    List.of(ctx.toSourceRef(srcObj, sc, null, "select", null)),
+                    List.of(ctx.toPositionalSourceRef(srcObj, sc, null, "select", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }
@@ -732,7 +771,7 @@ public final class SelectAndSetOpAnalyzer {
                 BoundColumn tgt = rs.getOrCreateColumn(ctx.mgr(), obj.getName(), false, span, ctx.sqlHash());
                 ctx.mgr().addColumnEdge(
                         RelationshipType.crud, EffectType.select, rs, tgt,
-                        List.of(ctx.toSourceRef(obj, rr, entry.alias(), "select", span)),
+                        List.of(ctx.toPositionalSourceRef(obj, rr, entry.alias(), "select", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
         }

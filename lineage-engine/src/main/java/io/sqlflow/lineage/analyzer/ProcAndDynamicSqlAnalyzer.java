@@ -197,7 +197,7 @@ public final class ProcAndDynamicSqlAnalyzer {
                     BoundColumn vc = varObj.getOrCreateColumn(ctx.mgr(), cc.getName(), false, stmt.span(), ctx.sqlHash());
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.rowtype, varObj, vc,
-                            List.of(ctx.toSourceRef(refTbl, sc, null, "select", stmt.span())),
+                            List.of(ctx.toPositionalSourceRef(refTbl, sc, null, "select", null)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -271,7 +271,7 @@ public final class ProcAndDynamicSqlAnalyzer {
                     : curObj.getOrCreateColumn(ctx.mgr(), "COL_" + (i + 1), false, stmt.span(), ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, EffectType.cursor, vObj, vc,
-                    List.of(ctx.toSourceRef(curObj, cc, null, "select", stmt.span())),
+                    List.of(ctx.toPositionalSourceRef(curObj, cc, null, "select", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }
@@ -443,7 +443,7 @@ public final class ProcAndDynamicSqlAnalyzer {
                         BoundColumn vc = vObj.getOrCreateColumn(dynCtx.mgr(), intoVars.get(i), false, span, dynCtx.sqlHash());
                         dynCtx.mgr().addColumnEdge(
                                 RelationshipType.fdd, EffectType.select, vObj, vc,
-                                List.of(dynCtx.toSourceRef(rs, cols.get(i), null, "select", span)),
+                                List.of(dynCtx.toPositionalSourceRef(rs, cols.get(i), null, "select", null)),
                                 dynCtx.activeProcess(), dynCtx.enclosingRoutine(), dynCtx.sqlHash(), null, null, null, null);
                     }
                 }
@@ -503,7 +503,7 @@ public final class ProcAndDynamicSqlAnalyzer {
                                     BoundColumn tc = current.getOrCreateColumn(ctx.mgr(), cn, false, step.span(), ctx.sqlHash());
                                     ctx.mgr().addColumnEdge(
                                             RelationshipType.fdd, EffectType.select, current, tc,
-                                            List.of(ctx.toSourceRef(up, sc, null, "select", step.span())),
+                                            List.of(ctx.toPositionalSourceRef(up, sc, null, "select", null)),
                                             ctx.activeProcess(), null, ctx.sqlHash(), null, null, null, null);
                                 }
                             } else {
@@ -515,7 +515,7 @@ public final class ProcAndDynamicSqlAnalyzer {
                                     BoundColumn tc = current.getOrCreateColumn(ctx.mgr(), ren.getValue(), false, step.span(), ctx.sqlHash());
                                     ctx.mgr().addColumnEdge(
                                             RelationshipType.fdd, EffectType.select, current, tc,
-                                            List.of(ctx.toSourceRef(up, sc, null, "select", step.span())),
+                                            List.of(ctx.toPositionalSourceRef(up, sc, null, "select", null)),
                                             ctx.activeProcess(), null, ctx.sqlHash(), null, null, null, null);
                                 }
                             }

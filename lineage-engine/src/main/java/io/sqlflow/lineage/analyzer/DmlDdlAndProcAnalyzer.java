@@ -123,6 +123,9 @@ public final class DmlDdlAndProcAnalyzer {
             return;
         }
         if (stmt instanceof SqlStmt.ErrorStmt err) {
+            if (baseCtx.dynamicDepth() > 0 && !baseCtx.option().isReportDynamicSqlSitesAsErrors()) {
+                return;
+            }
             baseCtx.mgr().addError(err.errorType(), err.message(), err.span(), baseCtx.sqlHash());
             return;
         }

@@ -29,6 +29,7 @@ import io.sqlflow.server.persistence.AnalyticalStore;
 import io.sqlflow.server.persistence.SessionCacheService;
 import io.sqlflow.server.security.CryptoService;
 import io.sqlflow.server.security.SqlflowBusinessException;
+import io.sqlflow.server.spi.CatalogUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
@@ -394,6 +395,7 @@ public class JobCenterService {
         try {
             EDbVendor vendor = lineageGenerationService.resolveVendor(job.getDbVendor());
             Option option = Option.forVendor(vendor);
+            option.setOutput(false);
             option.setDefaultServer(job.getDefaultServer());
             option.setDefaultDatabase(job.getDefaultDatabase());
             option.setDefaultSchema(job.getDefaultSchema());
@@ -500,13 +502,18 @@ public class JobCenterService {
                     : (batchFlows.size() == 1 ? batchFlows.get(0) : lineageEngineSpi.mergeDataFlows(batchFlows, option));
             merged.setSummary(lineageEngineSpi.summarize(merged));
 
+            int objCount = CatalogUtils.collectAllDbObjects(merged).size();
+            int relCount = merged.getRelationships() != null ? merged.getRelationships().size() : 0;
+            boolean summaryMode = objCount > 200 || relCount > config.getRelationLimit();
+
             GraphLayoutSpi.GraphLayoutRequest layoutReq =
                     GraphLayoutSpi.GraphLayoutRequest.of(merged, Orientation.LEFT_TO_RIGHT);
-            layoutReq.setIncludeGraphML(true);
+            layoutReq.setTableLevel(summaryMode);
+            layoutReq.setIncludeGraphML(!summaryMode);
             SqlflowJSON laidOut = graphLayoutSpi.layoutGraph(layoutReq);
             laidOut.setSqlflow(merged);
             laidOut.setSummary(merged.getSummary());
-            laidOut.setMode("global");
+            laidOut.setMode(summaryMode ? "summary" : "global");
             if (laidOut.getGraph() == null) {
                 SqlflowJSON.Graph nested = new SqlflowJSON.Graph();
                 nested.setElements(laidOut.getElements());
@@ -515,15 +522,20 @@ public class JobCenterService {
                 laidOut.setGraph(nested);
             }
 
-            byte[] dfBytes = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(merged);
-            Files.write(jobDir.resolve("dataflow.json"), dfBytes);
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(jobDir.resolve("graph.json").toFile(), laidOut);
+            Path dataflowPath = jobDir.resolve("dataflow.json");
+            if (summaryMode) {
+                objectMapper.writeValue(dataflowPath.toFile(), merged);
+                objectMapper.writeValue(jobDir.resolve("graph.json").toFile(), laidOut);
+            } else {
+                objectMapper.writerWithDefaultPrettyPrinter().writeValue(dataflowPath.toFile(), merged);
+                objectMapper.writerWithDefaultPrettyPrinter().writeValue(jobDir.resolve("graph.json").toFile(), laidOut);
+            }
+            long dfSize = Files.size(dataflowPath);
 
-            sessionCacheService.saveDataFlow(jobId, merged);
-            sessionCacheService.saveGraph(jobId, laidOut);
+            sessionCacheService.saveSession(jobId, "", vendor.wireName(), merged, laidOut, null);
 
-            LeftMostSourceTable leftMost = graphLayoutSpi.computeLeftMostSourceTable(merged, null, true);
             if (Boolean.TRUE.equals(job.getPersist()) && analyticalStore.isEnabled()) {
+                LeftMostSourceTable leftMost = graphLayoutSpi.computeLeftMostSourceTable(merged, null, true);
                 analyticalStore.persistJobLineage(job, merged, sqlEntries, leftMost);
             }
 
@@ -543,7 +555,8 @@ public class JobCenterService {
                 job.setExecuteTime(elapsed + "ms");
                 job.setExecuteTimeMillis(elapsed);
                 job.setSpendTime(elapsed);
-                job.setDataflowFileSize((long) dfBytes.length);
+                job.setDataflowFileSize(dfSize);
+                job.setErrorMessage(errorMessages.isEmpty() ? null : errorMessages.get(0));
                 job.setErrorMessages(errorMessages.isEmpty() ? null : errorMessages);
                 job.setSuccessSubJobCount(job.getSubJobs() != null ? job.getSubJobs().size() : 1);
                 updateSubJobStatus(job, batchId, finalStatus, elapsed + "ms");
@@ -552,7 +565,7 @@ public class JobCenterService {
             if (Boolean.TRUE.equals(job.getPersist()) && analyticalStore.isEnabled()) {
                 analyticalStore.updateJobStatus(jobId, JobStatus.SUCCESS.getWireValue(), null, elapsed);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("Job {} failed: {}", jobId, e.getMessage());
             long elapsed = System.currentTimeMillis() - startMillis;
             String endStr = TS_FMT.format(Instant.now());
@@ -797,6 +810,8 @@ public class JobCenterService {
                     null));
             job.setSubJobs(subs);
             job.setStatus(JobStatus.CREATE);
+            job.setErrorMessage(null);
+            job.setErrorMessages(null);
             saveJobToDisk(job, jobDirIndex.get(jobId));
         }
         jobExecutor.submit(() -> executeJobAsync(jobId, batchId, false));
@@ -1078,9 +1093,17 @@ public class JobCenterService {
         if (df == null) {
             return new SqlflowJSON();
         }
-        SqlflowJSON g = graphLayoutSpi.layoutGraph(
-                GraphLayoutSpi.GraphLayoutRequest.of(df, Orientation.LEFT_TO_RIGHT));
+        int objCount = CatalogUtils.collectAllDbObjects(df).size();
+        int relCount = df.getRelationships() != null ? df.getRelationships().size() : 0;
+        boolean summaryMode = objCount > 200 || relCount > config.getRelationLimit();
+        GraphLayoutSpi.GraphLayoutRequest layoutReq =
+                GraphLayoutSpi.GraphLayoutRequest.of(df, Orientation.LEFT_TO_RIGHT);
+        layoutReq.setTableLevel(summaryMode);
+        layoutReq.setIncludeGraphML(!summaryMode);
+        SqlflowJSON g = graphLayoutSpi.layoutGraph(layoutReq);
         g.setSqlflow(df);
+        g.setSummary(df.getSummary());
+        g.setMode(summaryMode ? "summary" : "global");
         sessionCacheService.saveGraph(jobId, g);
         return g;
     }

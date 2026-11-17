@@ -34,8 +34,14 @@ class SimpleProfileIntegrationTest {
     static void registerProperties(DynamicPropertyRegistry registry) throws Exception {
         tempHome = Files.createTempDirectory("sqlflow-simple-profile-test-");
         Files.createDirectories(tempHome.resolve("conf"));
+        Files.writeString(
+                tempHome.resolve("conf/sql_content_mapping.conf"),
+                "(?i)\\=mio_[a-zA-Z]\\d+=\\=mio\n");
         registry.add("sqlflow.home", () -> tempHome.toAbsolutePath().toString());
     }
+
+    @Autowired
+    private io.sqlflow.server.config.SqlflowRuntimeConfig runtimeConfig;
 
     @Autowired
     private MockMvc mockMvc;
@@ -63,5 +69,6 @@ class SimpleProfileIntegrationTest {
                 .getResponse()
                 .getContentAsString());
         assertThat(persistAttempt.path("code").asInt()).isNotEqualTo(200);
+        assertThat(runtimeConfig.preprocessSql("SELECT 1 WHERE x=mio_a12")).isEqualTo("SELECT 1 WHERE x=mio");
     }
 }

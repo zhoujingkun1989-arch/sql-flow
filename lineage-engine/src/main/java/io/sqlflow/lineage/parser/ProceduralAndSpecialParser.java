@@ -928,6 +928,33 @@ public final class ProceduralAndSpecialParser {
                 && (cur.peek(3).isSymbol(":=") || cur.peek(3).isSymbol("="))) {
             return true;
         }
+        // Collection / associative array element assignment: arr(idx) := expr, arr(idx).field := expr, arr[idx] := expr
+        if (cur.peek(1).isSymbol("(") || cur.peek(1).isSymbol("[")) {
+            String open = cur.peek(1).rawText();
+            String close = "(".equals(open) ? ")" : "]";
+            int k = 1;
+            while ((cur.peek(k).isSymbol("(") || cur.peek(k).isSymbol("[")) && k < 64) {
+                open = cur.peek(k).rawText();
+                close = "(".equals(open) ? ")" : "]";
+                int depth = 1;
+                k++;
+                while (!cur.peek(k).isEof() && depth > 0 && k < 64) {
+                    if (cur.peek(k).isSymbol(open)) {
+                        depth++;
+                    } else if (cur.peek(k).isSymbol(close)) {
+                        depth--;
+                    }
+                    k++;
+                }
+                if (depth != 0) {
+                    return false;
+                }
+            }
+            if (cur.peek(k).isSymbol(".") && cur.peek(k + 1).isIdentifierLike()) {
+                k += 2;
+            }
+            return cur.peek(k).isSymbol(":=") || cur.peek(k).isSymbol("=");
+        }
         return false;
     }
 
@@ -948,6 +975,22 @@ public final class ProceduralAndSpecialParser {
     private AssignStmt parseDirectAssignmentStmt() {
         SqlToken first = cur.advance();
         String varName = first.value();
+        while (cur.checkSymbol("(") || cur.checkSymbol("[")) {
+            if (cur.checkSymbol("(")) {
+                cur.skipParenthesizedGroup();
+            } else {
+                int depth = 1;
+                cur.advance();
+                while (!cur.isAtEnd() && depth > 0) {
+                    if (cur.checkSymbol("[")) {
+                        depth++;
+                    } else if (cur.checkSymbol("]")) {
+                        depth--;
+                    }
+                    cur.advance();
+                }
+            }
+        }
         String field = null;
         if (cur.matchSymbol(".") && cur.peek().isIdentifierLike()) {
             field = cur.advance().value();

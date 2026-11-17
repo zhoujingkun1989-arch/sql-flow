@@ -111,7 +111,7 @@ public final class SqlStatementSplitter {
                     } else if (isPackageStmt && beginDepth == 1 && tok.isAnyWord("PROCEDURE", "FUNCTION")) {
                         inPackageRoutineHeader = true;
                     } else if (isPackageStmt && inPackageRoutineHeader && tok.isSymbol(";")) {
-                        if (!isPackageOrProcedureWithBodyAhead(tokens, idx - 1, idx)) {
+                        if (!isPackageOrProcedureWithBodyAhead(tokens, idx - 1, idx, vendor)) {
                             inPackageRoutineHeader = false;
                         }
                     } else if (tok.isWord("CASE")) {
@@ -168,7 +168,7 @@ public final class SqlStatementSplitter {
                         }
                     } else if (inCreateCompoundHeader && !compoundBodySeen && tok.isSymbol(";")) {
                         // Could be forward declaration inside script or single-expression CREATE FUNCTION/MACRO
-                        if (!isPackageOrProcedureWithBodyAhead(tokens, stmtStartIdx, idx)) {
+                        if (!isPackageOrProcedureWithBodyAhead(tokens, stmtStartIdx, idx, vendor)) {
                             inCreateCompoundHeader = false;
                             idx++;
                             break;
@@ -293,35 +293,60 @@ public final class SqlStatementSplitter {
         return false;
     }
 
-    private static boolean isPackageOrProcedureWithBodyAhead(List<SqlToken> tokens, int stmtStart, int semiIdx) {
+    private static boolean isPackageOrProcedureWithBodyAhead(
+            List<SqlToken> tokens, int stmtStart, int semiIdx, EDbVendor vendor) {
         // Inside CREATE PACKAGE [BODY], declarations end with ';', followed eventually by END [pkg_name];
         for (int i = stmtStart + 1; i < Math.min(tokens.size() - 1, stmtStart + 6); i++) {
             if (tokens.get(i).isWord("PACKAGE")) {
                 return true;
             }
         }
-        // Check if AS/IS BEGIN appears within the next few tokens or if AS/IS already appeared with local decls before BEGIN
-        boolean sawAsOrIs = false;
-        for (int i = stmtStart + 1; i < semiIdx; i++) {
-            if (tokens.get(i).isAnyWord("AS", "IS") && tokens.get(i - 1).type() != TokenType.OPERATOR) {
-                sawAsOrIs = true;
-                break;
+        // Check if DECLARE (PL/SQL anonymous block) or AS/IS already appeared with local decls before BEGIN
+        boolean sawDeclareOrAsIs = tokens.get(stmtStart).isWord("DECLARE")
+                && (stmtStart + 1 >= tokens.size() || !tokens.get(stmtStart + 1).rawText().startsWith("@"));
+        if (!sawDeclareOrAsIs) {
+            for (int i = stmtStart + 1; i < semiIdx; i++) {
+                if (tokens.get(i).isAnyWord("AS", "IS") && tokens.get(i - 1).type() != TokenType.OPERATOR) {
+                    sawDeclareOrAsIs = true;
+                    break;
+                }
             }
         }
-        if (sawAsOrIs) {
-            // Local variable/cursor declaration between IS/AS and BEGIN in PL/SQL!
-            for (int j = semiIdx + 1; j < Math.min(tokens.size() - 1, semiIdx + 80); j++) {
-                if (tokens.get(j).isWord("BEGIN")) {
+        if (sawDeclareOrAsIs) {
+            // Local variable/type/cursor declarations between DECLARE/IS/AS and BEGIN in PL/SQL (unbounded declaration count)
+            int parenDepth = 0;
+            boolean inCursorDecl = false;
+            for (int j = semiIdx + 1; j < tokens.size() - 1; j++) {
+                SqlToken t = tokens.get(j);
+                if (t.isSymbol("(")) {
+                    parenDepth++;
+                    continue;
+                }
+                if (t.isSymbol(")")) {
+                    if (parenDepth > 0) {
+                        parenDepth--;
+                    }
+                    continue;
+                }
+                if (parenDepth > 0) {
+                    continue;
+                }
+                if (t.isSymbol(";")) {
+                    inCursorDecl = false;
+                    continue;
+                }
+                if (t.isWord("CURSOR")) {
+                    inCursorDecl = true;
+                    continue;
+                }
+                if (t.isWord("BEGIN")) {
                     return true;
                 }
-                if (tokens.get(j).isAnyWord("CREATE", "DROP", "SELECT", "INSERT", "UPDATE", "DELETE")) {
-                    // Unless SELECT is inside CURSOR c IS SELECT ...
-                    if (tokens.get(j).isWord("SELECT") && j > semiIdx + 2 && tokens.get(j - 2).isWord("CURSOR")) {
-                        continue;
-                    }
-                    if (tokens.get(j).isAnyWord("CREATE", "DROP")) {
-                        return false;
-                    }
+                if (isStandaloneSlashOrAtLine(tokens, j, vendor) || isStandaloneGoBatchSeparator(tokens, j, vendor)) {
+                    return false;
+                }
+                if (!inCursorDecl && t.isAnyWord("CREATE", "ALTER", "DROP", "TRUNCATE", "INSERT", "UPDATE", "DELETE", "MERGE")) {
+                    return false;
                 }
             }
         }

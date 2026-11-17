@@ -1,12 +1,13 @@
 package io.sqlflow.contracts.lineage.xml;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.xml.ser.ToXmlGenerator;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Thread-safe Jackson {@link XmlMapper} codec for {@code <dlineage>} XML ({@code 03 §1.3}).
@@ -28,17 +29,20 @@ public final class DlineageXmlCodec {
 
     public static String toXml(DlineageXml dlineage, boolean includeXmlDeclaration) {
         try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(4096);
             if (includeXmlDeclaration) {
-                return XML_MAPPER
+                XML_MAPPER
                         .writer()
                         .with(ToXmlGenerator.Feature.WRITE_XML_DECLARATION)
                         .with(SerializationFeature.INDENT_OUTPUT)
-                        .writeValueAsString(dlineage);
+                        .writeValue(out, dlineage);
+            } else {
+                XML_MAPPER
+                        .writerWithDefaultPrettyPrinter()
+                        .writeValue(out, dlineage);
             }
-            return XML_MAPPER
-                    .writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(dlineage);
-        } catch (JsonProcessingException e) {
+            return out.toString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
             throw new IllegalStateException("Failed to serialize <dlineage> XML", e);
         }
     }

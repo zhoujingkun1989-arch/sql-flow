@@ -126,7 +126,7 @@ public final class SugiyamaGraphLayouter {
         final int targetTableVertexIdx;
         final int sourceColRowIndex;
         final int targetColRowIndex;
-        final List<String> relationshipIds = new ArrayList<>();
+        final Set<String> relationshipIds = new LinkedHashSet<>();
         RelationshipType dominantType;
         String effectType;
 
@@ -441,9 +441,7 @@ public final class SugiyamaGraphLayouter {
             String relId = re.relationship().getId() != null
                     ? re.relationship().getId()
                     : String.valueOf(spec.relationshipIds.size() + 1);
-            if (!spec.relationshipIds.contains(relId)) {
-                spec.relationshipIds.add(relId);
-            }
+            spec.relationshipIds.add(relId);
             // Direct dataflow ('fdd') dominates visual stroke over indirect ('fdr') on shared visual edge
             if (re.relationType() == RelationshipType.fdd) {
                 spec.dominantType = RelationshipType.fdd;
@@ -532,7 +530,7 @@ public final class SugiyamaGraphLayouter {
             ge.setId(spec.edgeVisualId);
             ge.setSourceId(spec.sourceVisualId);
             ge.setTargetId(spec.targetVisualId);
-            ge.setRelationId(spec.relationshipIds.isEmpty() ? null : spec.relationshipIds.get(0));
+            ge.setRelationId(spec.relationshipIds.isEmpty() ? null : spec.relationshipIds.iterator().next());
             String relTypeStr = spec.dominantType != null ? spec.dominantType.wireName() : "fdd";
             ge.setType(relTypeStr);
             ge.setEffectType(spec.effectType != null ? spec.effectType : relTypeStr);
@@ -676,12 +674,13 @@ public final class SugiyamaGraphLayouter {
         for (LayoutVertex v : allVertices) {
             layers.get(v.rank).add(v);
         }
+        int[] vertexOrders = new int[allVertices.size()];
         for (List<LayoutVertex> layer : layers) {
             groupPackageSiblingsInLayer(layer);
-            updateLayerOrder(layer);
+            updateLayerOrder(layer, vertexOrders);
         }
 
-        minimizeCrossings(layers, allVertices.size(), unitArcs);
+        minimizeCrossings(layers, allVertices.size(), unitArcs, vertexOrders);
 
         // Phase 4: Coordinate assignment (primary rank axis + balanced secondary stack axis)
         boolean horizontalFlow = orientation == Orientation.LEFT_TO_RIGHT
@@ -981,7 +980,8 @@ public final class SugiyamaGraphLayouter {
     private void minimizeCrossings(
             List<List<LayoutVertex>> layers,
             int totalVertices,
-            List<DagArc> unitArcs) {
+            List<DagArc> unitArcs,
+            int[] vertexOrders) {
         if (layers.size() <= 1) {
             return;
         }
@@ -1000,13 +1000,13 @@ public final class SugiyamaGraphLayouter {
         for (int sweep = 0; sweep < 12; sweep++) {
             if (sweep % 2 == 0) {
                 for (int r = 1; r < layers.size(); r++) {
-                    sortLayerByBarycenter(layers.get(r), inByVertex, true, barycenter);
-                    transposeReduceCrossings(layers.get(r - 1), layers.get(r), outByVertex, true);
+                    sortLayerByBarycenter(layers.get(r), inByVertex, true, barycenter, vertexOrders);
+                    transposeReduceCrossings(layers.get(r), inByVertex, true, vertexOrders);
                 }
             } else {
                 for (int r = layers.size() - 2; r >= 0; r--) {
-                    sortLayerByBarycenter(layers.get(r), outByVertex, false, barycenter);
-                    transposeReduceCrossings(layers.get(r), layers.get(r + 1), outByVertex, false);
+                    sortLayerByBarycenter(layers.get(r), outByVertex, false, barycenter, vertexOrders);
+                    transposeReduceCrossings(layers.get(r), outByVertex, false, vertexOrders);
                 }
             }
         }
@@ -1016,7 +1016,8 @@ public final class SugiyamaGraphLayouter {
             List<LayoutVertex> layer,
             List<List<DagArc>> adjByVertex,
             boolean incoming,
-            double[] barycenter) {
+            double[] barycenter,
+            int[] vertexOrders) {
         if (layer.size() <= 1) {
             return;
         }
@@ -1031,7 +1032,7 @@ public final class SugiyamaGraphLayouter {
                     double nbrFrac = incoming ? a.effectiveFromFraction() : a.effectiveToFraction();
                     double myFrac = incoming ? a.effectiveToFraction() : a.effectiveFromFraction();
                     // Incorporate neighbor's orderInRank + column port offset
-                    sum += findOrderOf(nbrIdx, a, incoming) + (nbrFrac - 0.5) * 0.45 + (myFrac - 0.5) * 0.15;
+                    sum += vertexOrders[nbrIdx] + (nbrFrac - 0.5) * 0.45 + (myFrac - 0.5) * 0.15;
                 }
                 barycenter[v.vertexIndex] = sum / incident.size();
             }
@@ -1039,35 +1040,14 @@ public final class SugiyamaGraphLayouter {
         layer.sort(Comparator.comparingDouble((LayoutVertex v) -> barycenter[v.vertexIndex])
                 .thenComparingInt(v -> v.orderInRank));
         groupPackageSiblingsInLayer(layer);
-        updateLayerOrder(layer);
+        updateLayerOrder(layer, vertexOrders);
     }
 
-    // Store vertex orderInRank in a static-free lookup via DagArc vertices? Wait: we have LayoutVertex.orderInRank!
-    // Let's pass allVertices or store LayoutVertex refs in DagArc! Wait: let's check findOrderOf:
-    private double findOrderOf(int nbrIdx, DagArc a, boolean incoming) {
-        return vertexOrdersCache != null && nbrIdx < vertexOrdersCache.length
-                ? vertexOrdersCache[nbrIdx]
-                : 0.0;
-    }
-
-    private int[] vertexOrdersCache;
-
-    private void updateLayerOrder(List<LayoutVertex> layer) {
-        int maxIdx = 0;
-        for (LayoutVertex v : layer) {
-            maxIdx = Math.max(maxIdx, v.vertexIndex);
-        }
-        if (vertexOrdersCache == null || vertexOrdersCache.length <= maxIdx) {
-            int[] next = new int[Math.max(maxIdx + 16, vertexOrdersCache != null ? vertexOrdersCache.length * 2 : 64)];
-            if (vertexOrdersCache != null) {
-                System.arraycopy(vertexOrdersCache, 0, next, 0, vertexOrdersCache.length);
-            }
-            vertexOrdersCache = next;
-        }
+    private void updateLayerOrder(List<LayoutVertex> layer, int[] vertexOrders) {
         for (int i = 0; i < layer.size(); i++) {
             LayoutVertex v = layer.get(i);
             v.orderInRank = i;
-            vertexOrdersCache[v.vertexIndex] = i;
+            vertexOrders[v.vertexIndex] = i;
         }
     }
 
@@ -1103,16 +1083,11 @@ public final class SugiyamaGraphLayouter {
     }
 
     private void transposeReduceCrossings(
-            List<LayoutVertex> leftLayer,
-            List<LayoutVertex> rightLayer,
-            List<List<DagArc>> outByVertex,
-            boolean tuneRight) {
-        List<LayoutVertex> target = tuneRight ? rightLayer : leftLayer;
+            List<LayoutVertex> target,
+            List<List<DagArc>> adjByVertex,
+            boolean tuneRight,
+            int[] vertexOrders) {
         if (target.size() <= 1) {
-            return;
-        }
-        int currentCrossings = countBipartiteCrossings(leftLayer, outByVertex);
-        if (currentCrossings == 0) {
             return;
         }
         for (int i = 0; i + 1 < target.size(); i++) {
@@ -1124,40 +1099,36 @@ public final class SugiyamaGraphLayouter {
                     && b.packageModelId != null) {
                 continue;
             }
-            Collections.swap(target, i, i + 1);
-            updateLayerOrder(target);
-            int swappedCrossings = countBipartiteCrossings(leftLayer, outByVertex);
-            if (swappedCrossings < currentCrossings) {
-                currentCrossings = swappedCrossings;
-            } else {
-                Collections.swap(target, i, i + 1);
-                updateLayerOrder(target);
+            List<DagArc> arcsA = adjByVertex.get(a.vertexIndex);
+            List<DagArc> arcsB = adjByVertex.get(b.vertexIndex);
+            if (arcsA.isEmpty() || arcsB.isEmpty()) {
+                continue;
             }
-        }
-    }
-
-    private int countBipartiteCrossings(List<LayoutVertex> leftLayer, List<List<DagArc>> outByVertex) {
-        List<double[]> chords = new ArrayList<>();
-        for (LayoutVertex u : leftLayer) {
-            for (DagArc a : outByVertex.get(u.vertexIndex)) {
-                double uPos = u.orderInRank + a.effectiveFromFraction() * 0.5;
-                double vPos = vertexOrdersCache[a.effectiveTo()] + a.effectiveToFraction() * 0.5;
-                chords.add(new double[] {uPos, vPos});
-            }
-        }
-        int crossings = 0;
-        for (int i = 0; i < chords.size(); i++) {
-            double u1 = chords.get(i)[0];
-            double v1 = chords.get(i)[1];
-            for (int j = i + 1; j < chords.size(); j++) {
-                double u2 = chords.get(j)[0];
-                double v2 = chords.get(j)[1];
-                if ((u1 < u2 && v1 > v2) || (u1 > u2 && v1 < v2)) {
-                    crossings++;
+            int crossBefore = 0;
+            int crossAfter = 0;
+            for (DagArc ea : arcsA) {
+                int nbrA = tuneRight ? ea.effectiveFrom() : ea.effectiveTo();
+                double fracA = tuneRight ? ea.effectiveFromFraction() : ea.effectiveToFraction();
+                double posA = vertexOrders[nbrA] + fracA * 0.5;
+                for (DagArc eb : arcsB) {
+                    int nbrB = tuneRight ? eb.effectiveFrom() : eb.effectiveTo();
+                    double fracB = tuneRight ? eb.effectiveFromFraction() : eb.effectiveToFraction();
+                    double posB = vertexOrders[nbrB] + fracB * 0.5;
+                    if (posA > posB) {
+                        crossBefore++;
+                    } else if (posA < posB) {
+                        crossAfter++;
+                    }
                 }
             }
+            if (crossAfter < crossBefore) {
+                Collections.swap(target, i, i + 1);
+                a.orderInRank = i + 1;
+                b.orderInRank = i;
+                vertexOrders[a.vertexIndex] = i + 1;
+                vertexOrders[b.vertexIndex] = i;
+            }
         }
-        return crossings;
     }
 
     private List<GraphPackage> buildPackageContainers(

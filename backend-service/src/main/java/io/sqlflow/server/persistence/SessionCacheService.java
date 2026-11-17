@@ -26,7 +26,8 @@ import org.springframework.stereotype.Service;
 public class SessionCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(SessionCacheService.class);
-    private static final int MAX_MEMORY_ENTRIES = 256;
+    private static final int MAX_MEMORY_ENTRIES = 64;
+    private static final int MAX_IN_MEMORY_RELATIONS = 2500;
 
     private final SqlflowRuntimeConfig config;
     private final ObjectMapper objectMapper;
@@ -62,11 +63,18 @@ public class SessionCacheService {
         if (sessionId == null || sessionId.isBlank()) {
             return;
         }
-        if (memoryCache.size() >= MAX_MEMORY_ENTRIES) {
-            evictOldest();
+        boolean oversized = dataFlow != null
+                && dataFlow.getRelationships() != null
+                && dataFlow.getRelationships().size() > MAX_IN_MEMORY_RELATIONS;
+        if (oversized) {
+            memoryCache.remove(sessionId);
+        } else {
+            if (memoryCache.size() >= MAX_MEMORY_ENTRIES) {
+                evictOldest();
+            }
+            SessionEntry entry = new SessionEntry(sessionId, sqlText, dbvendor, dataFlow, graph, xml, Instant.now().toEpochMilli());
+            memoryCache.put(sessionId, entry);
         }
-        SessionEntry entry = new SessionEntry(sessionId, sqlText, dbvendor, dataFlow, graph, xml, Instant.now().toEpochMilli());
-        memoryCache.put(sessionId, entry);
 
         String bucket = computeBucket(sessionId);
         Path sessionBucketDir = config.getDataDir().resolve("session/sqlflow").resolve(bucket);
@@ -75,10 +83,9 @@ public class SessionCacheService {
             Files.createDirectories(sessionBucketDir);
             Files.createDirectories(cacheBucketDir);
             if (dataFlow != null) {
-                Files.writeString(
-                        sessionBucketDir.resolve(sessionId + ".dataflow.json"),
-                        objectMapper.writeValueAsString(dataFlow),
-                        StandardCharsets.UTF_8);
+                objectMapper.writeValue(
+                        sessionBucketDir.resolve(sessionId + ".dataflow.json").toFile(),
+                        dataFlow);
             }
             if (sqlText != null) {
                 Files.writeString(
@@ -93,10 +100,9 @@ public class SessionCacheService {
                         StandardCharsets.UTF_8);
             }
             if (graph != null) {
-                Files.writeString(
-                        cacheBucketDir.resolve(sessionId + ".json"),
-                        objectMapper.writeValueAsString(graph),
-                        StandardCharsets.UTF_8);
+                objectMapper.writeValue(
+                        cacheBucketDir.resolve(sessionId + ".json").toFile(),
+                        graph);
             }
         } catch (IOException e) {
             log.warn("Failed to persist session {} to disk: {}", sessionId, e.getMessage());
@@ -134,17 +140,19 @@ public class SessionCacheService {
             return null;
         }
         try {
-            DataFlow df = objectMapper.readValue(Files.readString(dfFile, StandardCharsets.UTF_8), DataFlow.class);
+            DataFlow df = objectMapper.readValue(dfFile.toFile(), DataFlow.class);
             Path sqlFile = sessionBucketDir.resolve(key + ".sql");
             String sql = Files.isRegularFile(sqlFile) ? Files.readString(sqlFile, StandardCharsets.UTF_8) : "";
             Path xmlFile = sessionBucketDir.resolve(key + ".dataflow.xml");
             String xml = Files.isRegularFile(xmlFile) ? Files.readString(xmlFile, StandardCharsets.UTF_8) : null;
             Path graphFile = cacheBucketDir.resolve(key + ".json");
             SqlflowJSON graph = Files.isRegularFile(graphFile)
-                    ? objectMapper.readValue(Files.readString(graphFile, StandardCharsets.UTF_8), SqlflowJSON.class)
+                    ? objectMapper.readValue(graphFile.toFile(), SqlflowJSON.class)
                     : null;
             SessionEntry loaded = new SessionEntry(key, sql, "dbvoracle", df, graph, xml, Instant.now().toEpochMilli());
-            memoryCache.put(key, loaded);
+            if (df == null || df.getRelationships() == null || df.getRelationships().size() <= MAX_IN_MEMORY_RELATIONS) {
+                memoryCache.put(key, loaded);
+            }
             return loaded;
         } catch (IOException e) {
             log.warn("Failed reading cached session {}: {}", key, e.getMessage());

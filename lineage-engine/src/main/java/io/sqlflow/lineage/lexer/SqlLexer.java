@@ -83,6 +83,16 @@ public final class SqlLexer {
         while (pos < len) {
             char ch = sql.charAt(pos);
 
+            // 0. UTF-8 BOM (\uFEFF): skip without shifting column at start of input
+            if (ch == '\uFEFF') {
+                if (pos == 0) {
+                    pos++;
+                } else {
+                    advance();
+                }
+                continue;
+            }
+
             // 1. Whitespace
             if (Character.isWhitespace(ch)) {
                 consumeWhitespace();
@@ -398,7 +408,7 @@ public final class SqlLexer {
     }
 
     private void consumeWhitespace() {
-        while (pos < len && Character.isWhitespace(sql.charAt(pos))) {
+        while (pos < len && (Character.isWhitespace(sql.charAt(pos)) || sql.charAt(pos) == '\uFEFF')) {
             advance();
         }
     }
@@ -415,9 +425,18 @@ public final class SqlLexer {
     private SqlToken readBlockComment(long startLine, long startCol, int startOffset) {
         advance(); // /
         advance(); // *
+        boolean allowNested = vendor == EDbVendor.dbvpostgresql
+                || vendor == EDbVendor.dbvgreenplum
+                || vendor == EDbVendor.dbvredshift
+                || vendor == EDbVendor.dbvduckdb
+                || vendor == EDbVendor.dbvmssql
+                || vendor == EDbVendor.dbvazuresql
+                || vendor == EDbVendor.dbvsybase
+                || vendor == EDbVendor.dbvsybasease
+                || vendor == EDbVendor.dbvsybaseiq;
         int depth = 1;
         while (pos < len && depth > 0) {
-            if (sql.charAt(pos) == '/' && peek(1) == '*') {
+            if (allowNested && sql.charAt(pos) == '/' && peek(1) == '*') {
                 advance();
                 advance();
                 depth++;
@@ -602,7 +621,12 @@ public final class SqlLexer {
     }
 
     private SqlToken readQuotedString(char quote, long startLine, long startCol, int startOffset, String prefix) {
-        boolean triple = peek(0) == quote && peek(1) == quote && peek(2) == quote;
+        boolean supportsTripleQuote = vendor == EDbVendor.dbvbigquery
+                || vendor == EDbVendor.dbvdatabricks
+                || (vendor == EDbVendor.dbvsparksql && quote == '"');
+        boolean triple = supportsTripleQuote
+                && peek(0) == quote && peek(1) == quote && peek(2) == quote
+                && !(peek(3) == quote && peek(4) != quote);
         if (triple) {
             advance();
             advance();
@@ -639,6 +663,7 @@ public final class SqlLexer {
                 || vendor == EDbVendor.dbvsnowflake
                 || vendor == EDbVendor.dbvclickhouse
                 || prefix.equalsIgnoreCase("E");
+        boolean sawHybridBackslashQuote = false;
         while (pos < len) {
             char c = sql.charAt(pos);
             if (backslashEscape && c == '\\' && pos + 1 < len && !prefix.equalsIgnoreCase("R")) {
@@ -651,6 +676,16 @@ public final class SqlLexer {
                     default -> esc;
                 });
                 advance();
+                continue;
+            }
+            // Hybrid Oracle/Inceptor dynamic SQL strings containing \'VALUE\' or '\' new where \''
+            if (!backslashEscape && quote == '\'' && c == '\\' && peek(1) == '\''
+                    && (sawHybridBackslashQuote || isIdentifierPart(peek(2)) || peek(2) == '$'
+                            || hasMatchingBackslashQuoteOnLine(pos + 2))) {
+                sawHybridBackslashQuote = true;
+                advance();
+                advance();
+                sb.append('\'');
                 continue;
             }
             if (c == quote) {
@@ -669,6 +704,22 @@ public final class SqlLexer {
         String raw = sql.substring(startOffset, pos);
         SourceSpan span = new SourceSpan(startLine, startCol, line, col, startOffset, pos);
         return new SqlToken(TokenType.STRING_LITERAL, raw, sb.toString(), false, false, span);
+    }
+
+    private boolean hasMatchingBackslashQuoteOnLine(int scanPos) {
+        for (int i = scanPos; i < len; i++) {
+            char ch = sql.charAt(i);
+            if (ch == '\n' || ch == '\r') {
+                return false;
+            }
+            if (ch == '\\' && i + 1 < len && sql.charAt(i + 1) == '\'') {
+                return true;
+            }
+            if (ch == '\'') {
+                return false;
+            }
+        }
+        return false;
     }
 
     private SqlToken readPowerQueryQuotedIdentifier(long startLine, long startCol, int startOffset) {

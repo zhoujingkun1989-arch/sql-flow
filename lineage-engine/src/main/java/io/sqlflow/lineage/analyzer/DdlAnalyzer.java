@@ -35,8 +35,10 @@ import io.sqlflow.lineage.catalog.TSQLEnv.CatalogSynonym;
 import io.sqlflow.lineage.catalog.TSQLEnv.CatalogTable;
 import io.sqlflow.lineage.lexer.SourceSpan;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Semantic analyzer for DDL, catalog context, PK/UK/FK constraints ({@code er} + {@code unqiueKey}),
@@ -147,13 +149,17 @@ public final class DdlAnalyzer {
                     }
                 }
                 List<BoundColumn> srcCols = rs.orderedColumns();
+                Set<String> usedInferredKeys = new HashSet<>();
                 for (int i = 0; i < srcCols.size(); i++) {
-                    String cn = i < explicitNames.size() ? explicitNames.get(i) : srcCols.get(i).getName();
+                    String cn = i < explicitNames.size()
+                            ? explicitNames.get(i)
+                            : DmlAnalyzer.resolveInferredTargetColumnName(
+                                    ctx, tblObj, srcCols.get(i).getName(), i + 1, usedInferredKeys);
                     BoundColumn tc = tblObj.getOrCreateColumn(ctx.mgr(), cn, false, stmt.span(), ctx.sqlHash());
                     ctx.env().addOrUpdateColumn(catTbl, new CatalogColumn(cn, null), false);
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.create_table, tblObj, tc,
-                            List.of(ctx.toSourceRef(rs, srcCols.get(i), null, "select", stmt.span())),
+                            List.of(ctx.toPositionalSourceRef(rs, srcCols.get(i), null, "select", null)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -175,14 +181,14 @@ public final class DdlAnalyzer {
                 BoundColumn tc = tblObj.getOrCreateColumn(ctx.mgr(), "*", false, stmt.span(), ctx.sqlHash());
                 ctx.mgr().addColumnEdge(
                         RelationshipType.fdd, EffectType.copy, tblObj, tc,
-                        List.of(ctx.toSourceRef(pathObj, sc, null, "select", stmt.span())),
+                        List.of(ctx.toPositionalSourceRef(pathObj, sc, null, "select", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             } else {
                 for (BoundColumn tc : cols) {
                     BoundColumn sc = pathObj.getOrCreateColumn(ctx.mgr(), tc.getName(), false, stmt.span(), ctx.sqlHash());
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.copy, tblObj, tc,
-                            List.of(ctx.toSourceRef(pathObj, sc, null, "select", stmt.span())),
+                            List.of(ctx.toPositionalSourceRef(pathObj, sc, null, "select", null)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -203,20 +209,23 @@ public final class DdlAnalyzer {
                     ResultSetType.select_list, null, EffectType.create_view);
             if (rs != null) {
                 List<BoundColumn> srcCols = rs.orderedColumns();
+                Set<String> usedInferredKeys = new HashSet<>();
                 for (int i = 0; i < srcCols.size(); i++) {
                     String vColName = (stmt.columnNames() != null && i < stmt.columnNames().size())
                             ? stmt.columnNames().get(i)
-                            : srcCols.get(i).getName();
-                    SourceSpan sp = (stmt.columnSpans() != null && i < stmt.columnSpans().size())
+                            : DmlAnalyzer.resolveInferredTargetColumnName(
+                                    ctx, viewObj, srcCols.get(i).getName(), i + 1, usedInferredKeys);
+                    SourceSpan colSpan = (stmt.columnSpans() != null && i < stmt.columnSpans().size())
                             ? stmt.columnSpans().get(i)
-                            : stmt.span();
-                    BoundColumn vc = viewObj.getOrCreateColumn(ctx.mgr(), vColName, false, sp, ctx.sqlHash());
+                            : null;
+                    BoundColumn vc = viewObj.getOrCreateColumn(
+                            ctx.mgr(), vColName, false, colSpan != null ? colSpan : stmt.span(), ctx.sqlHash());
                     if (!"*".equals(vColName)) {
                         ctx.env().addOrUpdateColumn(catView, new CatalogColumn(vColName, null), false);
                     }
                     ctx.mgr().addColumnEdge(
                             RelationshipType.fdd, EffectType.create_view, viewObj, vc,
-                            List.of(ctx.toSourceRef(rs, srcCols.get(i), null, "select", sp)),
+                            List.of(ctx.toPositionalSourceRef(rs, srcCols.get(i), null, "select", colSpan)),
                             ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
                 }
             }
@@ -335,7 +344,7 @@ public final class DdlAnalyzer {
                 BoundColumn tc = obj.getOrCreateColumn(ctx.mgr(), "*", false, ss.span(), ctx.sqlHash());
                 ctx.mgr().addColumnEdge(
                         RelationshipType.fdd, EffectType.copy, obj, tc,
-                        List.of(ctx.toSourceRef(path, sc, null, "select", ss.span())),
+                        List.of(ctx.toPositionalSourceRef(path, sc, null, "select", null)),
                         ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
             }
             if (ss.sourceTable() != null && !ss.sourceTable().isEmpty()) {
@@ -351,7 +360,7 @@ public final class DdlAnalyzer {
             BoundColumn tc = tgt.getOrCreateColumn(ctx.mgr(), "*", false, cds.span(), ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, eff, tgt, tc,
-                    List.of(ctx.toSourceRef(src, sc, null, "select", cds.span())),
+                    List.of(ctx.toPositionalSourceRef(src, sc, null, "select", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         } else if (stmt instanceof UseContextStmt use) {
             ctx.env().applyUseContext(use.kind(), use.target());
@@ -514,7 +523,7 @@ public final class DdlAnalyzer {
             BoundColumn tc = tgtObj.getOrCreateColumn(ctx.mgr(), cn, false, span, ctx.sqlHash());
             ctx.mgr().addColumnEdge(
                     RelationshipType.fdd, eff, tgtObj, tc,
-                    List.of(ctx.toSourceRef(srcObj, sc, null, "select", span)),
+                    List.of(ctx.toPositionalSourceRef(srcObj, sc, null, "select", null)),
                     ctx.activeProcess(), ctx.enclosingRoutine(), ctx.sqlHash(), null, null, null, null);
         }
     }

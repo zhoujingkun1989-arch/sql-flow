@@ -364,4 +364,107 @@ class SlicingLookupAndClosureTest {
         r.setTarget(tgt);
         return r;
     }
+
+    @Test
+    void deepReconvergentDiamondDagCompletesInLinearTimeAndUpgradesFdd() {
+        // 24-layer reconvergent diamond DAG (2^24 = 16.7M simple paths if unmemoized)
+        int layers = 24;
+        List<DbObject> tables = new ArrayList<>();
+        List<DbObject> resultSets = new ArrayList<>();
+        List<Relationship> rels = new ArrayList<>();
+
+        Column rootCol = new Column("c_root", "val");
+        DbObject rootTbl = new DbObject();
+        rootTbl.setId("t_root");
+        rootTbl.setDatabase("dw");
+        rootTbl.setSchema("raw");
+        rootTbl.setName("src_origin");
+        rootTbl.setType("table");
+        rootTbl.setColumns(List.of(rootCol));
+        tables.add(rootTbl);
+
+        String prevLeftTbl = "t_root";
+        String prevLeftCol = "c_root";
+        String prevRightTbl = "t_root";
+        String prevRightCol = "c_root";
+
+        int relSeq = 1;
+        for (int i = 1; i <= layers; i++) {
+            String lTblId = "rs_L_" + i;
+            String lColId = "c_L_" + i;
+            DbObject lRs = new DbObject();
+            lRs.setId(lTblId);
+            lRs.setName("RS_L_" + i);
+            lRs.setType("resultset");
+            lRs.setColumns(List.of(new Column(lColId, "val")));
+            resultSets.add(lRs);
+
+            String rTblId = "rs_R_" + i;
+            String rColId = "c_R_" + i;
+            DbObject rRs = new DbObject();
+            rRs.setId(rTblId);
+            rRs.setName("RS_R_" + i);
+            rRs.setType("resultset");
+            rRs.setColumns(List.of(new Column(rColId, "val")));
+            resultSets.add(rRs);
+
+            // Left branch carries fdr from both previous branches; right branch carries pure fdd on one side
+            rels.add(makeRel("r" + (relSeq++), "fdr", "where", prevLeftTbl, prevLeftCol, "val", lTblId, lColId, "val", null));
+            rels.add(makeRel("r" + (relSeq++), "fdr", "where", prevRightTbl, prevRightCol, "val", lTblId, lColId, "val", null));
+            rels.add(makeRel("r" + (relSeq++), "fdr", "where", prevLeftTbl, prevLeftCol, "val", rTblId, rColId, "val", null));
+            rels.add(makeRel("r" + (relSeq++), "fdd", "select", prevRightTbl, prevRightCol, "val", rTblId, rColId, "val", null));
+
+            prevLeftTbl = lTblId;
+            prevLeftCol = lColId;
+            prevRightTbl = rTblId;
+            prevRightCol = rColId;
+        }
+
+        Column dstCol = new Column("c_dst", "final_val");
+        DbObject dstTbl = new DbObject();
+        dstTbl.setId("t_dst");
+        dstTbl.setDatabase("dw");
+        dstTbl.setSchema("mart");
+        dstTbl.setName("dst_report");
+        dstTbl.setType("table");
+        dstTbl.setColumns(List.of(dstCol));
+        tables.add(dstTbl);
+
+        rels.add(makeRel("r_end_L", "fdr", "where", prevLeftTbl, prevLeftCol, "val", "t_dst", "c_dst", "final_val", null));
+        rels.add(makeRel("r_end_R", "fdd", "select", prevRightTbl, prevRightCol, "val", "t_dst", "c_dst", "final_val", null));
+
+        SchemaObject sch = new SchemaObject("mart");
+        sch.setTables(tables);
+        sch.setOthers(resultSets);
+        DatabaseObject db = new DatabaseObject("dw");
+        db.setSchemas(List.of(sch));
+        SqlflowCatalog catalog = new SqlflowCatalog();
+        catalog.setDatabases(List.of(db));
+
+        DataFlow df = new DataFlow();
+        df.setDbobjs(catalog);
+        df.setRelationships(rels);
+
+        long t0 = System.currentTimeMillis();
+        LeftMostSourceTable lm = service.computeLeftMostSourceTable(df, "dst_report", true);
+        long closureMs = System.currentTimeMillis() - t0;
+        assertThat(closureMs).isLessThan(1_000L);
+        assertThat(lm.getElements()).hasSize(1);
+        TargetColumn tc = lm.getElements().get(0).getColumns().get(0);
+        assertThat(tc.getSourceColumns()).hasSize(1);
+        assertThat(tc.getSourceColumns().get(0).getTableName()).isEqualTo("src_origin");
+        assertThat(tc.getSourceColumns().get(0).getRelationType()).isEqualTo("fdd");
+
+        long t1 = System.currentTimeMillis();
+        GraphSliceRequest sliceReq = new GraphSliceRequest();
+        sliceReq.setDataFlow(df);
+        sliceReq.setTable("dst_report");
+        sliceReq.setIgnoreRecordSet(true);
+        sliceReq.setLayoutResult(false);
+        SlicingResult sliced = service.sliceUpstream(sliceReq);
+        long sliceMs = System.currentTimeMillis() - t1;
+        assertThat(sliceMs).isLessThan(1_000L);
+        assertThat(sliced.getSlicedDataFlow().getRelationships())
+                .anyMatch(r -> "fdd".equals(r.getType()));
+    }
 }

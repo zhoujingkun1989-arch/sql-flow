@@ -81,7 +81,9 @@ public class LineageEngineService implements LineageEngineSpi {
             CommentBindingBundle commentBindings = CommentBindingCollector.collect(loaded.units(), mgr, opt);
             DegradationMode mode = DataFlowPostProcessor.process(mgr, opt);
 
-            DlineageXml dlineageXml = DlineageXmlBuilder.build(mgr, opt, commentBindings);
+            DlineageXml dlineageXml = opt.isOutput() && !opt.isTextFormat()
+                    ? DlineageXmlBuilder.build(mgr, opt, commentBindings)
+                    : null;
             DataFlow dataFlow = DataFlowSerializer.toDataFlow(mgr, loaded.effectiveVendor(), opt, commentBindings);
             SummaryInfo summary = DataFlowMergerAndSummarizer.summarize(dataFlow);
             dataFlow.setSummary(summary);
